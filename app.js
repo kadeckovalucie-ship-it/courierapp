@@ -696,37 +696,19 @@ function renderProfitChart(shifts) {
 
   if (!points.length) return `<div class="empty chart-empty">Graf se zobrazí po doplnění hodin a výdělku.</div>`;
 
-  const width = Math.max(240, points.length * 54);
-  const height = 92;
-  const padding = 14;
-  const min = Math.min(...points.map((point) => point.value), 0);
-  const max = Math.max(...points.map((point) => point.value), 1);
-  const range = max - min || 1;
-  const coordinates = points.map((point, index) => {
-    const x = points.length === 1
-      ? width / 2
-      : padding + (index * (width - padding * 2)) / (points.length - 1);
-    const y = padding + ((max - point.value) / range) * (height - padding * 2);
-    return { ...point, x, y };
-  });
-  const path = coordinates.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
-  const zeroY = padding + ((max - 0) / range) * (height - padding * 2);
-
+  const max = Math.max(...points.map((point) => Math.max(0, point.value)), 1);
   return `
-    <div class="line-chart-scroll">
-      <svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Čistý zisk za hodinu podle směn">
-        <text class="chart-axis-label" x="4" y="10">Y: čistý výdělek / h</text>
-        <text class="chart-axis-label" x="${width - 4}" y="${height - 2}" text-anchor="end">X: datum</text>
-        <line class="chart-zero" x1="0" y1="${zeroY.toFixed(1)}" x2="${width}" y2="${zeroY.toFixed(1)}"></line>
-        <path class="chart-line" d="${path}"></path>
-        ${coordinates.map((point) => `
-          <g>
-            <circle class="chart-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3.2"></circle>
-            <text class="chart-value" x="${point.x.toFixed(1)}" y="${Math.max(10, point.y - 7).toFixed(1)}">${formatCompactMoney(point.value)}</text>
-            <text class="chart-date" x="${point.x.toFixed(1)}" y="${height - 2}">${formatShortDate(point.date)}</text>
-          </g>
-        `).join("")}
-      </svg>
+    <div class="chart-bars" style="--chart-count: ${points.length}">
+      ${points.map((point) => {
+        const height = Math.max(6, Math.round((Math.max(0, point.value) / max) * 100));
+        return `
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height: ${height}%"></div>
+            <strong>${formatMoney(point.value)}</strong>
+            <span>${formatShortDate(point.date)}</span>
+          </div>
+        `;
+      }).join("")}
     </div>
   `;
 }
@@ -1535,12 +1517,6 @@ function formatMoney(value) {
     currency: "CZK",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(value || 0);
-}
-
-function formatCompactMoney(value) {
-  return new Intl.NumberFormat("cs-CZ", {
-    maximumFractionDigits: 0,
   }).format(value || 0);
 }
 

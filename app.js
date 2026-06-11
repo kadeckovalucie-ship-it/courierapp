@@ -1,5 +1,7 @@
 const STORAGE_KEY = "naklady-smen-profiles-v1";
 const LEGACY_STORAGE_KEY = "naklady-smen-web-v1";
+const DEMO_PROFILE_NAME = "Zkušební profil";
+const DEMO_PROFILE_VERSION = 3;
 
 const profileStore = loadProfileStore();
 let state = getActiveProfile();
@@ -19,15 +21,17 @@ function cacheElements() {
     views: [...document.querySelectorAll(".view")],
     headerTitle: document.querySelector("#headerTitle"),
     headerSubtitle: document.querySelector("#headerSubtitle"),
-    overviewTitle: document.querySelector("#overviewTitle"),
     monthDisplayButton: document.querySelector("#monthDisplayButton"),
     newOverviewButton: document.querySelector("#newOverviewButton"),
     exportPdfButton: document.querySelector("#exportPdfButton"),
     monthPicker: document.querySelector("#monthPicker"),
+    metricsGrid: document.querySelector("#metricsGrid"),
     metricIncome: document.querySelector("#metricIncome"),
     metricKm: document.querySelector("#metricKm"),
     metricFuel: document.querySelector("#metricFuel"),
     metricTaxes: document.querySelector("#metricTaxes"),
+    metricRent: document.querySelector("#metricRent"),
+    metricRentTile: document.querySelector("#metricRentTile"),
     metricCosts: document.querySelector("#metricCosts"),
     metricProfit: document.querySelector("#metricProfit"),
     metricHourly: document.querySelector("#metricHourly"),
@@ -35,7 +39,6 @@ function cacheElements() {
     overviewList: document.querySelector("#overviewList"),
     shiftList: document.querySelector("#shiftList"),
     historySortSelect: document.querySelector("#historySortSelect"),
-    addShiftButton: document.querySelector("#addShiftButton"),
     shiftDialog: document.querySelector("#shiftDialog"),
     shiftDetailDialog: document.querySelector("#shiftDetailDialog"),
     shiftForm: document.querySelector("#shiftForm"),
@@ -57,6 +60,7 @@ function cacheElements() {
     backupStatus: document.querySelector("#backupStatus"),
     monthlyShiftCount: document.querySelector("#monthlyShiftCount"),
     averageShiftIncome: document.querySelector("#averageShiftIncome"),
+    flatExpenseRate: document.querySelector("#flatExpenseRate"),
     taxGrid: document.querySelector("#taxGrid"),
     pdfInput: document.querySelector("#pdfInput"),
     pdfStatus: document.querySelector("#pdfStatus"),
@@ -70,9 +74,6 @@ function cacheElements() {
     manualHours: document.querySelector("#manualHours"),
     saveManualEarningsButton: document.querySelector("#saveManualEarningsButton"),
     downloadBackupButton: document.querySelector("#downloadBackupButton"),
-    preferencesButton: document.querySelector("#preferencesButton"),
-    preferencesDialog: document.querySelector("#preferencesDialog"),
-    closePreferencesButton: document.querySelector("#closePreferencesButton"),
   });
 }
 
@@ -92,7 +93,6 @@ function bindEvents() {
   });
   els.newOverviewButton.addEventListener("click", createOverview);
   els.exportPdfButton.addEventListener("click", exportCurrentOverviewPdf);
-  els.addShiftButton.addEventListener("click", createOverview);
   els.historySortSelect.addEventListener("change", updateHistorySort);
   els.shiftForm.addEventListener("submit", saveShiftFromDialog);
   els.closeShiftDetailButton.addEventListener("click", () => els.shiftDetailDialog.close());
@@ -108,13 +108,13 @@ function bindEvents() {
   els.backupInput.addEventListener("change", importBackup);
   els.monthlyShiftCount.addEventListener("input", updateBusinessEstimate);
   els.averageShiftIncome.addEventListener("input", updateBusinessEstimate);
+  els.flatExpenseRate.addEventListener("input", updateBusinessEstimate);
+  els.flatExpenseRate.addEventListener("change", updateBusinessEstimate);
   els.pdfInput.addEventListener("change", handlePdfImport);
   els.earningsInput.addEventListener("change", handleEarningsImport);
   els.saveManualPdfButton.addEventListener("click", saveManualKilometers);
   els.saveManualEarningsButton.addEventListener("click", saveManualEarnings);
   els.downloadBackupButton.addEventListener("click", exportData);
-  els.preferencesButton.addEventListener("click", openPreferences);
-  els.closePreferencesButton.addEventListener("click", () => els.preferencesDialog.close());
 }
 
 function setDefaults() {
@@ -130,6 +130,7 @@ function setDefaults() {
   els.averageShiftIncome.value = state.business?.averageShiftIncome
     ? formatInputNumber(state.business.averageShiftIncome, 2)
     : "";
+  els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
 }
 
 function loadProfileStore() {
@@ -157,14 +158,22 @@ function loadProfileStore() {
   }
 
   const profile = createDefaultProfile("Můj profil");
-  return { activeProfileId: profile.id, profiles: [profile] };
+  const demoProfile = createDemoProfile();
+  return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
 }
 
 function normalizeStore(store) {
   const profiles = (store.profiles || []).map((item, index) => normalizeProfile(item, `Profil ${index + 1}`));
   if (!profiles.length) {
     const profile = createDefaultProfile("Můj profil");
-    return { activeProfileId: profile.id, profiles: [profile] };
+    const demoProfile = createDemoProfile();
+    return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
+  }
+  const demoProfileIndex = profiles.findIndex((item) => item.profile?.profileName === DEMO_PROFILE_NAME);
+  if (demoProfileIndex >= 0 && profiles[demoProfileIndex].demoVersion !== DEMO_PROFILE_VERSION) {
+    profiles[demoProfileIndex] = createDemoProfile(profiles[demoProfileIndex].id);
+  } else if (demoProfileIndex < 0) {
+    profiles.push(createDemoProfile());
   }
   const activeProfileId = profiles.some((item) => item.id === store.activeProfileId)
     ? store.activeProfileId
@@ -180,6 +189,7 @@ function normalizeProfile(profileData, fallbackName = "Můj profil") {
     settings: {
       consumption: profileData.settings?.consumption ?? 10,
       fuelPrice: profileData.settings?.fuelPrice ?? 39,
+      vehicleRent: profileData.settings?.vehicleRent ?? 0,
       fixed: profileData.settings?.fixed || {
         social: 0,
         health: 0,
@@ -191,6 +201,7 @@ function normalizeProfile(profileData, fallbackName = "Můj profil") {
     business: {
       monthlyShiftCount: profileData.business?.monthlyShiftCount ?? 20,
       averageShiftIncome: profileData.business?.averageShiftIncome ?? 0,
+      flatExpenseRate: profileData.business?.flatExpenseRate ?? 0.8,
     },
     profile: {
       profileName: profileData.profile?.profileName || profileData.profile?.appName || fallbackName,
@@ -202,6 +213,7 @@ function normalizeProfile(profileData, fallbackName = "Můj profil") {
     preferences: {
       historySort: profileData.preferences?.historySort || "desc",
     },
+    demoVersion: profileData.demoVersion || 0,
   };
 }
 
@@ -209,19 +221,71 @@ function createDefaultProfile(profileName) {
   return normalizeProfile({
     id: crypto.randomUUID(),
     profile: { profileName },
-    shifts: [
-      {
-        id: crypto.randomUUID(),
-        date: toDateInput(new Date()),
-        title: "Ukázková směna",
-        kilometers: 86.4,
-        hours: 7.5,
-        income: 2350,
-        notes: "Ukázková data, můžeš je smazat.",
-        routeStops: [],
-      },
-    ],
   }, profileName);
+}
+
+function createDemoProfile(id = crypto.randomUUID()) {
+  const month = toDateInput(new Date()).slice(0, 7);
+  const demoShifts = createDemoShifts(month);
+  const averageShiftIncome = demoShifts.reduce((sum, shift) => sum + shift.income, 0) / demoShifts.length;
+  return normalizeProfile({
+    id,
+    demoVersion: DEMO_PROFILE_VERSION,
+    profile: { profileName: DEMO_PROFILE_NAME },
+    overviews: [{ month, createdAt: new Date().toISOString() }],
+    settings: {
+      consumption: 10,
+      fuelPrice: 39,
+      vehicleRent: 4200,
+    },
+    business: {
+      monthlyShiftCount: demoShifts.length,
+      averageShiftIncome,
+      flatExpenseRate: 0.8,
+    },
+    shifts: demoShifts,
+  }, DEMO_PROFILE_NAME);
+}
+
+function createDemoShifts(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const sampleDays = Array.from({ length: 20 }, (_, index) =>
+    Math.min(daysInMonth, 1 + Math.round((index * (daysInMonth - 1)) / 19))
+  );
+  const samples = [
+    { km: 49.5, hours: 4.4, income: 1760 },
+    { km: 56.2, hours: 4.8, income: 1680 },
+    { km: 61.4, hours: 5.2, income: 1880 },
+    { km: 52.8, hours: 4.5, income: 1760 },
+    { km: 68.6, hours: 5.7, income: 2110 },
+    { km: 73.1, hours: 6.1, income: 2290 },
+    { km: 45.7, hours: 3.9, income: 1080 },
+    { km: 63.9, hours: 5.4, income: 2050 },
+    { km: 58.2, hours: 4.9, income: 1960 },
+    { km: 70.4, hours: 5.8, income: 2380 },
+    { km: 54.9, hours: 4.6, income: 1780 },
+    { km: 66.5, hours: 5.5, income: 2220 },
+    { km: 80.2, hours: 6.4, income: 2470 },
+    { km: 42.1, hours: 3.8, income: 1390 },
+    { km: 59.6, hours: 5.0, income: 2130 },
+    { km: 76.3, hours: 6.0, income: 2590 },
+    { km: 50.4, hours: 4.2, income: 1730 },
+    { km: 64.8, hours: 5.1, income: 2360 },
+    { km: 47.9, hours: 4.0, income: 1560 },
+    { km: 69.7, hours: 5.3, income: 2520 },
+  ];
+
+  return sampleDays.map((day, index) => ({
+    id: crypto.randomUUID(),
+    date: `${month}-${String(day).padStart(2, "0")}`,
+    title: "Zkušební směna",
+    kilometers: samples[index].km,
+    hours: samples[index].hours,
+    income: samples[index].income,
+    notes: "Modelová data pro náhled grafu a dlaždic",
+    routeStops: [],
+  }));
 }
 
 function getActiveProfile() {
@@ -234,20 +298,19 @@ function saveState() {
 }
 
 function switchView(viewName) {
+  if (viewName === "preferences") {
+    fillProfileForm();
+    setStatus(els.backupStatus, backupHelpText());
+  }
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.view === viewName));
   els.views.forEach((view) => view.classList.toggle("active", view.id === `view-${viewName}`));
-}
-
-function openPreferences() {
-  fillProfileForm();
-  setStatus(els.backupStatus, backupHelpText());
-  els.preferencesDialog.showModal();
 }
 
 function fillSettingsForm() {
   const { settings } = state;
   els.settingsForm.elements.consumption.value = settings.consumption;
   els.settingsForm.elements.fuelPrice.value = settings.fuelPrice;
+  els.settingsForm.elements.vehicleRent.value = settings.vehicleRent || "";
 }
 
 function fillHistorySort() {
@@ -307,6 +370,7 @@ function switchProfile() {
   els.averageShiftIncome.value = state.business?.averageShiftIncome
     ? formatInputNumber(state.business.averageShiftIncome, 2)
     : "";
+  els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
 }
@@ -323,6 +387,7 @@ function createProfile() {
   applyAppearance();
   els.monthlyShiftCount.value = state.business.monthlyShiftCount;
   els.averageShiftIncome.value = "";
+  els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
 }
@@ -348,6 +413,7 @@ function deleteProfile() {
   els.averageShiftIncome.value = state.business.averageShiftIncome
     ? formatInputNumber(state.business.averageShiftIncome, 2)
     : "";
+  els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
 }
@@ -357,6 +423,7 @@ function updateSettings() {
   state.settings = {
     consumption: numberValue(form.consumption.value),
     fuelPrice: numberValue(form.fuelPrice.value),
+    vehicleRent: numberValue(form.vehicleRent.value),
     fixed: state.settings.fixed || { social: 0, health: 0, sickness: 0, pension: 0, tax: 0 },
   };
   saveState();
@@ -365,7 +432,7 @@ function updateSettings() {
 
 function appearance() {
   state.appearance = {
-    theme: state.appearance?.theme || "system",
+    theme: state.appearance?.theme === "dark" ? "dark" : "light",
     wallpaper: state.appearance?.wallpaper || "",
   };
   return state.appearance;
@@ -373,7 +440,7 @@ function appearance() {
 
 function updateAppearance() {
   const current = appearance();
-  current.theme = els.themeSelect.value || "system";
+  current.theme = els.themeSelect.value === "dark" ? "dark" : "light";
   saveState();
   applyAppearance();
 }
@@ -435,6 +502,7 @@ function updateBusinessEstimate() {
   state.business = {
     monthlyShiftCount: numberValue(els.monthlyShiftCount.value),
     averageShiftIncome: numberValue(els.averageShiftIncome.value),
+    flatExpenseRate: parseFlatExpenseRate(els.flatExpenseRate.value),
   };
   saveState();
   render();
@@ -449,7 +517,6 @@ function render() {
 
   const month = els.monthPicker.value || toDateInput(new Date()).slice(0, 7);
   if (ensureOverview(month)) saveState();
-  els.overviewTitle.textContent = "Přehled";
   els.monthDisplayButton.textContent = formatShortMonthLabel(month);
   const monthShifts = state.shifts
     .filter((shift) => shift.date?.startsWith(month))
@@ -461,6 +528,10 @@ function render() {
   els.metricKm.textContent = formatKm(totals.km);
   els.metricFuel.textContent = formatMoney(totals.fuel);
   els.metricTaxes.textContent = formatMoney(totals.taxes);
+  els.metricRent.textContent = formatMoney(totals.rent);
+  const hasVehicleRent = state.settings.vehicleRent > 0;
+  els.metricRentTile.hidden = !hasVehicleRent;
+  els.metricsGrid.classList.toggle("has-rent", hasVehicleRent);
   els.metricCosts.textContent = formatMoney(totals.cost);
   els.metricProfit.textContent = formatMoney(profit);
   els.metricHourly.textContent = totals.hours > 0 ? formatMoney(profit / totals.hours) : "Bez hodin";
@@ -480,24 +551,20 @@ function render() {
 function renderTaxEstimate() {
   const averageIncome = numberValue(els.averageShiftIncome.value) || averageIncomePerShift();
   const monthlyShiftCount = numberValue(els.monthlyShiftCount.value) || 0;
+  const flatExpenseRate = parseFlatExpenseRate(state.business?.flatExpenseRate ?? els.flatExpenseRate.value);
+  els.flatExpenseRate.value = String(flatExpenseRate);
   if (!els.averageShiftIncome.value && averageIncome > 0) {
     els.averageShiftIncome.placeholder = formatInputNumber(averageIncome, 2);
   }
 
-  const estimate = calculateBusinessEstimate(averageIncome, monthlyShiftCount);
-  const month = els.monthPicker.value || toDateInput(new Date()).slice(0, 7);
-  const monthHours = totalHoursForMonth(month);
-  const osvcHourly = monthHours > 0 ? estimate.monthlyReserve / monthHours : 0;
+  const estimate = calculateBusinessEstimate(averageIncome, monthlyShiftCount, flatExpenseRate);
   els.taxGrid.innerHTML = [
     ["Měsíční obrat", formatMoney(estimate.monthlyRevenue)],
     ["Roční obrat", formatMoney(estimate.annualRevenue)],
-    ["Paušální výdaje 80 %", formatMoney(estimate.flatExpenses)],
-    ["Základ po výdajích", formatMoney(estimate.profitBase)],
-    ["Daň z příjmů", formatMoney(estimate.incomeTax)],
-    ["Důchodové / sociální", formatMoney(estimate.socialInsurance)],
-    ["Zdravotní VOZP", formatMoney(estimate.healthInsurance)],
-    ["Odkládat / měsíc", formatMoney(estimate.monthlyReserve)],
-    ["OSVČ / odjetá h", monthHours > 0 ? formatMoney(osvcHourly) : "Bez hodin"],
+    ["Daň/měsíc", formatMoney(estimate.monthlyIncomeTax)],
+    ["Sociální/měsíc", formatMoney(estimate.monthlySocialInsurance)],
+    ["Zdravotní/měsíc", formatMoney(estimate.monthlyHealthInsurance)],
+    ["Rezerva/měsíc", formatMoney(estimate.monthlyReserve)],
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
 }
 
@@ -507,15 +574,18 @@ function averageIncomePerShift() {
   return paidShifts.reduce((sum, shift) => sum + shift.income, 0) / paidShifts.length;
 }
 
-function calculateBusinessEstimate(shiftIncome, monthlyShiftCount) {
+function calculateBusinessEstimate(shiftIncome, monthlyShiftCount, flatExpenseRate = 0.8) {
   const monthlyRevenue = shiftIncome * monthlyShiftCount;
   const annualRevenue = monthlyRevenue * 12;
-  const flatExpenses = Math.min(annualRevenue * 0.8, 1600000);
+  const flatExpenses = Math.min(annualRevenue * flatExpenseRate, 1600000);
   const profitBase = Math.max(0, annualRevenue - flatExpenses);
   const incomeTax = calculateIncomeTax(profitBase);
   const socialInsurance = Math.max(profitBase * 0.55 * 0.292, 5720 * 12);
   const healthInsurance = Math.max(profitBase * 0.5 * 0.135, 3306 * 12);
-  const monthlyReserve = (incomeTax + socialInsurance + healthInsurance) / 12;
+  const monthlyIncomeTax = incomeTax / 12;
+  const monthlySocialInsurance = socialInsurance / 12;
+  const monthlyHealthInsurance = healthInsurance / 12;
+  const monthlyReserve = monthlyIncomeTax + monthlySocialInsurance + monthlyHealthInsurance;
 
   return {
     monthlyRevenue,
@@ -525,6 +595,9 @@ function calculateBusinessEstimate(shiftIncome, monthlyShiftCount) {
     incomeTax,
     socialInsurance,
     healthInsurance,
+    monthlyIncomeTax,
+    monthlySocialInsurance,
+    monthlyHealthInsurance,
     monthlyReserve,
   };
 }
@@ -621,12 +694,20 @@ function renderOverviewHistoryCards(months) {
           </div>
         </div>
         <div class="breakdown">
-          <div><span>OSVČ</span><strong>${formatMoney(totals.taxes)}</strong></div>
           <div><span>Benzín</span><strong>${formatMoney(totals.fuel)}</strong></div>
-          <div><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
+          <div><span>Kilometry</span><strong>${formatKm(totals.km)}</strong></div>
           <div><span>Hodiny</span><strong>${formatHours(totals.hours)}</strong></div>
+          <div><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
         </div>
-        <button class="danger small delete-overview-button" data-month="${month}" type="button">Smazat přehled</button>
+        <button class="delete-overview-button" data-month="${month}" type="button" aria-label="Smazat přehled ${formatMonthLabel(month)}" title="Smazat přehled">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16"></path>
+            <path d="M9 7V5h6v2"></path>
+            <path d="M7 7l1 13h8l1-13"></path>
+            <path d="M10 11v5"></path>
+            <path d="M14 11v5"></path>
+          </svg>
+        </button>
       </article>
     `;
   }).join("");
@@ -675,42 +756,116 @@ function calculateMonthTotals(month) {
         acc.hours += shift.hours;
         acc.fuel += breakdown.fuelCost;
         acc.taxes += breakdown.osvcShare;
+        acc.rent += breakdown.vehicleRentShare;
         acc.cost += breakdown.totalCost;
         acc.income += shift.income;
         return acc;
       },
-      { km: 0, hours: 0, fuel: 0, taxes: 0, cost: 0, income: 0 }
+      { km: 0, hours: 0, fuel: 0, taxes: 0, rent: 0, cost: 0, income: 0 }
     );
 }
 
 function renderProfitChart(shifts) {
+  const peakShift = findPeakShift(shifts);
+  const lowShift = findLowShift(shifts);
   const points = shifts
     .filter((shift) => shift.hours > 0)
     .map((shift) => {
-      const breakdown = getBreakdown(shift);
       return {
+        id: shift.id,
         date: shift.date,
-        value: breakdown.profitPerHour ?? 0,
+        value: Math.max(0, shift.income / shift.hours),
+        isPeak: shift.id === peakShift?.id,
+        isLow: shift.id === lowShift?.id,
       };
     });
 
-  if (!points.length) return `<div class="empty chart-empty">Graf se zobrazí po doplnění hodin a výdělku.</div>`;
+  if (!points.length) return `<div class="empty chart-empty">Graf se zobrazí po doplnění výdělku a hodin.</div>`;
 
-  const max = Math.max(...points.map((point) => Math.max(0, point.value)), 1);
+  const values = points.map((point) => point.value);
+  const minValue = 0;
+  const maxValue = Math.max(50, Math.ceil(Math.max(...values, 1) / 50) * 50);
+  const range = maxValue - minValue || 1;
+  const width = 680;
+  const height = 240;
+  const padding = { top: 18, right: 14, bottom: 38, left: 44 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
+  const yForValue = (value) => padding.top + ((maxValue - value) / range) * plotHeight;
+  const labelStep = Math.max(1, Math.ceil(points.length / 6));
+  const chartPoints = points.map((point, index) => ({
+    ...point,
+    showValue: point.isPeak || point.isLow,
+    showDate: point.isPeak || point.isLow || index === 0 || index === points.length - 1 || index % labelStep === 0,
+    x: padding.left + (points.length > 1 ? index * xStep : plotWidth / 2),
+    y: yForValue(point.value),
+  }));
+  const linePath = chartPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(" ");
+  const fillPath = `${linePath} L ${chartPoints.at(-1).x.toFixed(1)} ${padding.top + plotHeight} L ${chartPoints[0].x.toFixed(1)} ${padding.top + plotHeight} Z`;
+  const tickCount = Math.floor(maxValue / 50) + 1;
+  const ticks = Array.from({ length: tickCount }, (_, index) => {
+    const value = maxValue - (50 * index);
+    return {
+      value,
+      y: yForValue(value),
+    };
+  });
+
   return `
-    <div class="chart-bars" style="--chart-count: ${points.length}">
-      ${points.map((point) => {
-        const height = Math.max(6, Math.round((Math.max(0, point.value) / max) * 100));
-        return `
-          <div class="chart-bar-wrap">
-            <div class="chart-bar" style="height: ${height}%"></div>
-            <strong>${formatMoney(point.value)}</strong>
-            <span>${formatShortDate(point.date)}</span>
-          </div>
-        `;
-      }).join("")}
+    <div class="line-chart-scroll">
+      <svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Čistý zisk za hodinu podle směn">
+        <defs>
+          <linearGradient id="profitChartFill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="currentColor" stop-opacity="0.14"></stop>
+            <stop offset="100%" stop-color="currentColor" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
+        ${ticks.map((tick) => `
+          <line class="chart-grid" x1="${padding.left}" y1="${tick.y.toFixed(1)}" x2="${width - padding.right}" y2="${tick.y.toFixed(1)}"></line>
+          ${tick.value % 100 === 0 ? `<text class="chart-y-label" x="${padding.left - 10}" y="${(tick.y + 4).toFixed(1)}">${formatAxisMoney(tick.value)}</text>` : ""}
+        `).join("")}
+        <line class="chart-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + plotHeight}"></line>
+        <line class="chart-axis" x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${width - padding.right}" y2="${padding.top + plotHeight}"></line>
+        <path class="chart-area" d="${fillPath}"></path>
+        <path class="chart-line" d="${linePath}"></path>
+        ${chartPoints.map((point) => `
+          <g class="chart-point-group${point.isPeak ? " is-peak" : ""}${point.isLow ? " is-low" : ""}">
+            <circle class="chart-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>
+            ${point.isPeak ? `
+              <circle class="chart-peak-ring" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="8"></circle>
+            ` : ""}
+            ${point.showValue ? `<text class="chart-value" x="${point.x.toFixed(1)}" y="${Math.max(12, point.y - 10).toFixed(1)}">${formatAxisMoney(point.value)}</text>` : ""}
+            ${point.showDate ? `<text class="chart-date" x="${point.x.toFixed(1)}" y="${height - 14}">${formatShortDate(point.date)}</text>` : ""}
+          </g>
+        `).join("")}
+      </svg>
     </div>
   `;
+}
+
+function findPeakShift(shifts) {
+  return shifts.reduce((best, shift) => {
+    if (!shift.hours) return best;
+    const value = Math.max(0, shift.income / shift.hours);
+    if (value <= 0) return best;
+    if (!best || value > best.value) return { id: shift.id, date: shift.date, value };
+    return best;
+  }, null);
+}
+
+function findLowShift(shifts) {
+  const validShifts = shifts.filter((shift) => shift.hours > 0);
+  if (validShifts.length < 2) return null;
+
+  return validShifts.reduce((lowest, shift) => {
+    if (!shift.hours) return lowest;
+    const value = Math.max(0, shift.income / shift.hours);
+    if (!lowest || value < lowest.value) return { id: shift.id, date: shift.date, value };
+    return lowest;
+  }, null);
 }
 
 function exportCurrentOverviewPdf() {
@@ -780,6 +935,7 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
           <div class="box"><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
           <div class="box"><span>Náklady OSVČ</span><strong>${formatMoney(totals.taxes)}</strong></div>
           <div class="box"><span>Náklady benzín</span><strong>${formatMoney(totals.fuel)}</strong></div>
+          <div class="box"><span>Pronájem auta</span><strong>${formatMoney(totals.rent)}</strong></div>
           <div class="box"><span>Zisk</span><strong>${formatMoney(profit)}</strong></div>
           <div class="box"><span>Hodiny</span><strong>${formatHours(totals.hours)}</strong></div>
           <div class="box"><span>Kilometry</span><strong>${formatKm(totals.km)}</strong></div>
@@ -802,6 +958,8 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
 }
 
 function renderDashboardShiftTiles(shifts) {
+  const peakShift = findPeakShift(shifts);
+  const lowShift = findLowShift(shifts);
   const addTile = `
     <button class="dashboard-shift dashboard-shift-add" id="dashboardAddShiftButton" type="button" aria-label="Nahrát data směny">
       <span>+</span>
@@ -811,7 +969,7 @@ function renderDashboardShiftTiles(shifts) {
 
   return addTile + shifts
     .map((shift) => `
-      <button class="dashboard-shift" data-id="${shift.id}" type="button">
+      <button class="dashboard-shift${shift.id === peakShift?.id ? " peak-shift" : ""}${shift.id === lowShift?.id ? " low-shift" : ""}" data-id="${shift.id}" type="button" title="${shift.id === peakShift?.id ? "Nejvyšší výkon měsíce" : shift.id === lowShift?.id ? "Nejnižší výkon měsíce" : ""}">
         <span>${formatShortDate(shift.date)}</span>
       </button>
     `)
@@ -869,18 +1027,28 @@ function getBreakdown(shift) {
   const fuelLiters = (shift.kilometers * state.settings.consumption) / 100;
   const fuelCost = fuelLiters * state.settings.fuelPrice;
   const osvcShare = osvcCostShare(shift);
-  const totalCost = fuelCost + osvcShare;
+  const vehicleRentShare = vehicleRentShareForShift(shift);
+  const totalCost = fuelCost + osvcShare + vehicleRentShare;
   const profit = shift.income - totalCost;
 
   return {
     fuelLiters,
     fuelCost,
     osvcShare,
+    vehicleRentShare,
     osvcCostPerHour: shift.hours > 0 ? osvcShare / shift.hours : null,
     totalCost,
     profit,
     profitPerHour: shift.hours > 0 ? profit / shift.hours : null,
   };
+}
+
+function vehicleRentShareForShift(shift) {
+  if (!shift.hours) return 0;
+  const month = shift.date.slice(0, 7);
+  const monthHours = totalHoursForMonth(month);
+  if (!monthHours) return 0;
+  return ((state.settings.vehicleRent || 0) / monthHours) * shift.hours;
 }
 
 function osvcCostShare(shift) {
@@ -890,7 +1058,8 @@ function osvcCostShare(shift) {
   if (!monthHours) return 0;
   const estimate = calculateBusinessEstimate(
     numberValue(els.averageShiftIncome.value) || averageIncomePerShift(),
-    numberValue(els.monthlyShiftCount.value) || 0
+    numberValue(els.monthlyShiftCount.value) || 0,
+    parseFlatExpenseRate(state.business?.flatExpenseRate)
   );
   return (estimate.monthlyReserve / monthHours) * shift.hours;
 }
@@ -1448,8 +1617,7 @@ function exportData() {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
-  setStatus(els.backupStatus, `Záloha stažena: ${fileName}. Hledej ji ve složce Stažené/Downloads, případně tam, kam máš v prohlížeči nastavené ukládání. Zpět ji nahraješ přes ozubené kolečko -> Záloha -> Nahrát zálohu.`);
-  els.preferencesDialog.showModal();
+  setStatus(els.backupStatus, `Záloha stažena: ${fileName}. Hledej ji ve složce Stažené/Downloads, případně tam, kam máš v prohlížeči nastavené ukládání. Zpět ji nahraješ v záložce Nastavení -> Záloha -> Nahrát zálohu.`);
 }
 
 async function importBackup() {
@@ -1475,6 +1643,7 @@ async function importBackup() {
     els.averageShiftIncome.value = state.business?.averageShiftIncome
       ? formatInputNumber(state.business.averageShiftIncome, 2)
       : "";
+    els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
     applyAppearance();
     render();
     setStatus(els.backupStatus, `Záloha nahrána: ${profileStore.profiles.length} profilů.`);
@@ -1507,6 +1676,11 @@ function numberValue(value) {
   return Number(String(value || 0).replace(",", ".")) || 0;
 }
 
+function parseFlatExpenseRate(value) {
+  const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+  return [0.8, 0.6, 0.4, 0.3].includes(parsed) ? parsed : 0.8;
+}
+
 function toDateInput(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
@@ -1517,6 +1691,12 @@ function formatMoney(value) {
     currency: "CZK",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+function formatAxisMoney(value) {
+  return new Intl.NumberFormat("cs-CZ", {
+    maximumFractionDigits: 0,
   }).format(value || 0);
 }
 
@@ -1540,7 +1720,11 @@ function formatMonthLabel(value) {
 function formatShortMonthLabel(value) {
   const [year, month] = String(value).split("-").map(Number);
   const monthName = new Intl.DateTimeFormat("cs-CZ", { month: "long" }).format(new Date(year, month - 1, 1));
-  return `${monthName} ${String(year).slice(-2)}`;
+  return `${capitalizeFirst(monthName)} ${String(year).slice(-2)}`;
+}
+
+function capitalizeFirst(value) {
+  return value ? value.charAt(0).toLocaleUpperCase("cs-CZ") + value.slice(1) : "";
 }
 
 function formatShortDate(value) {

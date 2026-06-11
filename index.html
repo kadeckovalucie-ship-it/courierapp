@@ -18,53 +18,54 @@
           <p class="eyebrow" id="headerSubtitle">Profil</p>
           <h1 id="headerTitle">Můj profil</h1>
         </div>
-        <button class="icon-button" id="preferencesButton" type="button" aria-label="Nastavení" title="Nastavení">⚙</button>
       </header>
 
       <main>
-        <section class="view active" id="view-overview" aria-labelledby="overviewTitle">
+        <section class="view active" id="view-overview" aria-labelledby="monthDisplayButton">
           <div class="section-title">
-            <h2 id="overviewTitle">Přehled</h2>
-            <button class="month-display" id="monthDisplayButton" type="button">červen 26</button>
+            <button class="month-display" id="monthDisplayButton" type="button">Červen 26</button>
             <input class="visually-hidden" id="monthPicker" type="month" aria-label="Měsíc přehledu">
             <button class="primary small" id="newOverviewButton" type="button">Nový měsíc</button>
             <button class="secondary small" id="exportPdfButton" type="button">Export PDF</button>
           </div>
           <section class="dashboard-box">
-            <h3>Celkové účetnictví</h3>
-            <div class="metrics">
+            <div class="metrics" id="metricsGrid">
               <article>
                 <span>Příjem</span>
                 <strong id="metricIncome">0 Kč</strong>
               </article>
               <article>
+                <span>Čistý zisk za hodinu</span>
+                <strong id="metricHourly">Bez hodin</strong>
+              </article>
+              <article>
+                <span>Čistý zisk za měsíc</span>
+                <strong id="metricProfit">0 Kč</strong>
+              </article>
+              <article class="metric-middle-left">
                 <span>Kilometry</span>
                 <strong id="metricKm">0 km</strong>
               </article>
-              <article>
+              <article class="metric-middle-right">
                 <span>Palivo</span>
                 <strong id="metricFuel">0 Kč</strong>
               </article>
-              <article>
+              <article id="metricTaxesTile">
                 <span>OSVČ odvody</span>
                 <strong id="metricTaxes">0 Kč</strong>
               </article>
-              <article>
+              <article id="metricRentTile">
+                <span>Pronájem vozidla</span>
+                <strong id="metricRent">0 Kč</strong>
+              </article>
+              <article id="metricCostsTile">
                 <span>Výdaje celkem</span>
                 <strong id="metricCosts">0 Kč</strong>
-              </article>
-              <article>
-                <span>Čistý zisk</span>
-                <strong id="metricProfit">0 Kč</strong>
-              </article>
-              <article>
-                <span>Čistý zisk / h</span>
-                <strong id="metricHourly">Bez hodin</strong>
               </article>
             </div>
           </section>
           <section class="dashboard-box">
-            <h3>Čistý zisk / hodina podle směn</h3>
+            <h3>Výkon</h3>
             <div class="profit-chart" id="profitChart"></div>
           </section>
           <section class="dashboard-box dashboard-box-shifts">
@@ -73,14 +74,12 @@
           </section>
         </section>
 
-        <section class="view" id="view-shifts" aria-labelledby="shiftsTitle">
+        <section class="view" id="view-shifts" aria-label="Historie přehledů">
           <div class="section-title">
-            <h2 id="shiftsTitle">Historie přehledů</h2>
             <select id="historySortSelect" aria-label="Řazení historie">
               <option value="desc">Od nejnovějšího</option>
               <option value="asc">Od nejstaršího</option>
             </select>
-            <button class="primary small" id="addShiftButton" type="button">Nový měsíc</button>
           </div>
           <div class="list" id="shiftList"></div>
         </section>
@@ -91,7 +90,7 @@
           </div>
           <div class="stack">
             <article class="panel">
-              <h3>PDF kilometry</h3>
+              <h3>Kniha jízd</h3>
               <input id="pdfInput" type="file" accept="application/pdf">
               <input id="manualPdfDate" type="hidden">
               <div class="inline-fields">
@@ -100,12 +99,12 @@
                   <input id="manualPdfKm" type="text" inputmode="decimal">
                 </label>
               </div>
-              <button class="secondary" id="saveManualPdfButton" type="button">Uložit kilometry</button>
+              <button class="secondary" id="saveManualPdfButton" type="button">Uložit</button>
               <p class="status" id="pdfStatus"></p>
             </article>
 
             <article class="panel">
-              <h3>Screenshot výdělku</h3>
+              <h3>Výdělek</h3>
               <input id="earningsInput" type="file" accept="image/*">
               <input id="manualEarningsDate" type="hidden">
               <div class="inline-fields">
@@ -118,7 +117,7 @@
                   <input id="manualHours" type="text" inputmode="decimal">
                 </label>
               </div>
-              <button class="secondary" id="saveManualEarningsButton" type="button">Zapsat výdělek</button>
+              <button class="secondary" id="saveManualEarningsButton" type="button">Uložit</button>
               <p class="status" id="ocrStatus"></p>
             </article>
           </div>
@@ -128,8 +127,22 @@
           <div class="section-title">
             <h2 id="settingsTitle">Náklady</h2>
           </div>
+          <form class="settings-grid cost-tile-grid" id="settingsForm">
+            <label class="cost-tile">
+              Spotřeba l / 100 km
+              <input name="consumption" type="text" inputmode="decimal">
+            </label>
+            <label class="cost-tile">
+              Cena paliva / litr
+              <input name="fuelPrice" type="text" inputmode="decimal">
+            </label>
+            <label class="cost-tile">
+              Pronájem vozidla / měsíc
+              <input name="vehicleRent" type="text" inputmode="decimal">
+            </label>
+          </form>
           <article class="panel tax-panel">
-            <h3>OSVČ odhad</h3>
+            <h3>OSVČ náklady</h3>
             <div class="inline-fields">
               <label>
                 Směn za měsíc
@@ -139,20 +152,95 @@
                 Výdělek / směna
                 <input id="averageShiftIncome" type="text" inputmode="decimal">
               </label>
+              <label>
+                Paušální výdaje
+                <select id="flatExpenseRate">
+                  <option value="0.8">80 %</option>
+                  <option value="0.6">60 %</option>
+                  <option value="0.4">40 %</option>
+                  <option value="0.3">30 %</option>
+                </select>
+              </label>
             </div>
             <div class="tax-grid" id="taxGrid"></div>
-            <p class="status">Počítáno s paušálními výdaji 80 %. Zdravotní část podle VOZP. Orientační výpočet.</p>
+            <p class="status">Zdravotní část podle VOZP. Orientační výpočet.</p>
           </article>
-          <form class="settings-grid" id="settingsForm">
-            <label>
-              Spotřeba l / 100 km
-              <input name="consumption" type="text" inputmode="decimal">
+        </section>
+
+        <section class="view" id="view-preferences" aria-labelledby="preferencesTitle">
+          <div class="section-title preferences-title-row">
+            <h2 id="preferencesTitle">Nastavení</h2>
+            <label class="theme-mode-control">
+              <span>Tmavý a světlý režim</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2"></path>
+                <path d="M12 20v2"></path>
+                <path d="M4.93 4.93l1.41 1.41"></path>
+                <path d="M17.66 17.66l1.41 1.41"></path>
+                <path d="M2 12h2"></path>
+                <path d="M20 12h2"></path>
+                <path d="M4.93 19.07l1.41-1.41"></path>
+                <path d="M17.66 6.34l1.41-1.41"></path>
+              </svg>
+              <select id="themeSelect">
+                <option value="light">Světlý</option>
+                <option value="dark">Tmavý</option>
+              </select>
             </label>
-            <label>
-              Cena paliva / litr
-              <input name="fuelPrice" type="text" inputmode="decimal">
-            </label>
-          </form>
+          </div>
+          <div class="preferences-panel">
+            <section class="preferences-section">
+              <h3>Profil</h3>
+              <div class="settings-grid">
+                <label>
+                  Vybraný profil
+                  <select id="profileSelect"></select>
+                </label>
+                <label>
+                  Název profilu
+                  <input id="profileNameInput" type="text" placeholder="Můj profil">
+                </label>
+                <div class="profile-actions">
+                  <button class="secondary" id="newProfileButton" type="button">Nový profil</button>
+                  <button class="danger" id="deleteProfileButton" type="button">Smazat profil</button>
+                </div>
+              </div>
+            </section>
+            <section class="preferences-section">
+              <h3>Přihlášení profilu</h3>
+              <p class="status">Teď je profil uložený jen v tomto zařízení. Cloudové přihlášení přidáme později.</p>
+            </section>
+            <section class="preferences-section">
+              <h3>Vzhled</h3>
+              <div class="wallpaper-row">
+                <label>
+                  Tapeta
+                  <input id="wallpaperInput" type="file" accept="image/*">
+                </label>
+                <button class="delete-icon-button" id="clearWallpaperButton" type="button" aria-label="Smazat tapetu" title="Smazat tapetu">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16"></path>
+                    <path d="M9 7V5h6v2"></path>
+                    <path d="M7 7l1 13h8l1-13"></path>
+                    <path d="M10 11v5"></path>
+                    <path d="M14 11v5"></path>
+                  </svg>
+                </button>
+              </div>
+            </section>
+            <section class="preferences-section">
+              <h3>Záloha</h3>
+              <div class="settings-grid">
+                <button class="secondary" id="downloadBackupButton" type="button">Vytvořit zálohu</button>
+                <label>
+                  Nahrát zálohu
+                  <input id="backupInput" type="file" accept="application/json,.json">
+                </label>
+                <p class="status" id="backupStatus"></p>
+              </div>
+            </section>
+          </div>
         </section>
       </main>
 
@@ -161,6 +249,7 @@
         <button data-view="shifts" type="button">Historie</button>
         <button data-view="import" type="button">Import</button>
         <button data-view="settings" type="button">Náklady</button>
+        <button data-view="preferences" type="button">Nastavení</button>
       </nav>
     </div>
 
@@ -213,65 +302,6 @@
         </header>
         <div class="detail-grid" id="shiftDetailGrid"></div>
         <a class="map-link detail-map" id="shiftDetailMap" href="#" target="_blank" rel="noopener">Zobrazit mapu</a>
-      </div>
-    </dialog>
-
-    <dialog id="preferencesDialog">
-      <div class="preferences-panel">
-        <header>
-          <h2>Nastavení</h2>
-          <button class="icon-button" id="closePreferencesButton" type="button" aria-label="Zavřít">×</button>
-        </header>
-        <section class="preferences-section">
-          <h3>Profil</h3>
-          <div class="settings-grid">
-            <label>
-              Vybraný profil
-              <select id="profileSelect"></select>
-            </label>
-            <label>
-              Název profilu
-              <input id="profileNameInput" type="text" placeholder="Můj profil">
-            </label>
-            <div class="profile-actions">
-              <button class="secondary" id="newProfileButton" type="button">Nový profil</button>
-              <button class="danger" id="deleteProfileButton" type="button">Smazat profil</button>
-            </div>
-          </div>
-        </section>
-        <section class="preferences-section">
-          <h3>Přihlášení profilu</h3>
-          <p class="status">Teď je profil uložený jen v tomto zařízení. Cloudové přihlášení přidáme později.</p>
-        </section>
-        <section class="preferences-section">
-          <h3>Vzhled</h3>
-          <div class="settings-grid">
-            <label>
-              Režim
-              <select id="themeSelect">
-                <option value="system">Podle zařízení</option>
-                <option value="light">Světlý</option>
-                <option value="dark">Tmavý</option>
-              </select>
-            </label>
-            <label>
-              Tapeta
-              <input id="wallpaperInput" type="file" accept="image/*">
-            </label>
-            <button class="secondary" id="clearWallpaperButton" type="button">Smazat tapetu</button>
-          </div>
-        </section>
-        <section class="preferences-section">
-          <h3>Záloha</h3>
-          <div class="settings-grid">
-            <button class="secondary" id="downloadBackupButton" type="button">Stáhnout zálohu</button>
-            <label>
-              Nahrát zálohu
-              <input id="backupInput" type="file" accept="application/json,.json">
-            </label>
-            <p class="status" id="backupStatus"></p>
-          </div>
-        </section>
       </div>
     </dialog>
 

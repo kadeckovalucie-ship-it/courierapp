@@ -19,20 +19,20 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #101513;
-  --panel: rgba(24, 32, 29, 0.94);
-  --panel-2: rgba(42, 53, 49, 0.9);
-  --text: #f4f7f4;
-  --muted: #a9b8b2;
-  --line: #33423d;
+  --bg: #000000;
+  --panel: #111514;
+  --panel-2: #1b211f;
+  --text: #f5f7f6;
+  --muted: #aab3af;
+  --line: #2d3633;
   --accent: #18a98f;
   --accent-2: #3f8ea8;
   --good: #2bb36d;
   --bad: #ff6b5f;
   --warn: #f3aa45;
   --danger: #c73d35;
-  --shadow: 0 14px 38px rgba(0, 0, 0, 0.28);
-  --scrim: rgba(16, 21, 19, 0.8);
+  --shadow: 0 14px 38px rgba(0, 0, 0, 0.42);
+  --scrim: rgba(0, 0, 0, 0.78);
 }
 
 * {
@@ -60,7 +60,7 @@ body {
   background-image:
     linear-gradient(180deg, var(--scrim), var(--scrim)),
     var(--wallpaper),
-    linear-gradient(180deg, #15241f 0, #101513 280px, var(--bg) 100%);
+    linear-gradient(180deg, #000000 0, #050606 280px, var(--bg) 100%);
 }
 
 body.has-wallpaper .panel,
@@ -153,21 +153,30 @@ main {
   margin-bottom: 16px;
 }
 
+#view-shifts .section-title {
+  justify-content: flex-end;
+}
+
 #view-overview .section-title {
   display: grid;
-  grid-template-columns: auto minmax(120px, 1fr) auto auto;
+  grid-template-columns: minmax(104px, 1.35fr) minmax(74px, 1fr) minmax(74px, 1fr);
   align-items: center;
+  gap: clamp(6px, 1.6vw, 12px);
 }
 
 .month-display {
+  min-width: 0;
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 8px 11px;
+  padding: 8px clamp(7px, 1.8vw, 11px);
   color: var(--text);
   background: var(--panel);
+  font-size: clamp(17px, 4.2vw, 24px);
   font-weight: 800;
-  text-align: left;
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .visually-hidden {
@@ -182,7 +191,7 @@ main {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 11px;
   margin-bottom: 20px;
 }
@@ -214,25 +223,40 @@ dialog form,
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
+  text-align: center;
   text-transform: uppercase;
 }
 
 .metrics article {
   position: relative;
   overflow: hidden;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  grid-column: span 2;
   min-height: 94px;
   padding: 15px;
+  text-align: center;
 }
 
-.metrics article::after {
-  content: "";
-  position: absolute;
-  right: 13px;
-  bottom: 11px;
-  width: 34px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line);
+.metrics article[hidden] {
+  display: none;
+}
+
+.metrics .metric-middle-left {
+  grid-column: 2 / span 2;
+}
+
+.metrics .metric-middle-right {
+  grid-column: 4 / span 2;
+}
+
+.metrics:not(.has-rent) #metricTaxesTile {
+  grid-column: 2 / span 2;
+}
+
+.metrics:not(.has-rent) #metricCostsTile {
+  grid-column: 4 / span 2;
 }
 
 .metrics article.positive {
@@ -293,7 +317,7 @@ label,
 .overview-history-card {
   position: relative;
   overflow: hidden;
-  padding: 12px;
+  padding: 12px 38px 12px 12px;
 }
 
 .overview-history-card::before {
@@ -305,10 +329,43 @@ label,
 }
 
 .delete-overview-button {
-  margin-top: 8px;
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  color: var(--danger);
+  background: transparent;
+  line-height: 1;
+  opacity: 0.82;
+}
+
+.delete-overview-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.delete-overview-button:hover,
+.delete-overview-button:focus-visible {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  opacity: 1;
 }
 
 .dashboard-shift {
+  position: relative;
+  display: grid;
+  place-items: center;
   aspect-ratio: 1 / 1;
   min-height: 0;
   border: 1px solid var(--line);
@@ -323,8 +380,42 @@ label,
 }
 
 .dashboard-shift span {
+  position: relative;
+  z-index: 1;
   display: block;
   overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.dashboard-shift.peak-shift {
+  border-color: rgba(161, 92, 7, 0.5);
+  background: color-mix(in srgb, var(--warn) 18%, var(--panel));
+}
+
+.dashboard-shift.peak-shift::before {
+  content: "★";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  color: rgba(161, 92, 7, 0.24);
+  font-size: 31px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
+.dashboard-shift.low-shift {
+  border-color: rgba(180, 35, 24, 0.45);
+  background: color-mix(in srgb, var(--bad) 13%, var(--panel));
+}
+
+.dashboard-shift.low-shift::after {
+  content: "!";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  color: rgba(180, 35, 24, 0.24);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translate(-50%, -50%);
 }
 
 .dashboard-shift-add {
@@ -335,7 +426,89 @@ label,
 }
 
 .profit-chart {
-  min-height: 86px;
+  min-height: 0;
+}
+
+.line-chart-scroll {
+  overflow: hidden;
+  padding: 0;
+}
+
+.line-chart {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  color: var(--accent);
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  stroke: var(--text);
+  stroke-width: 1.25;
+}
+
+.chart-area {
+  fill: url("#profitChartFill");
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.chart-point {
+  fill: var(--text);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.chart-point-group.is-peak .chart-point {
+  fill: var(--warn);
+}
+
+.chart-point-group.is-low .chart-point {
+  fill: var(--bad);
+}
+
+.chart-peak-ring {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 2;
+}
+
+.chart-value,
+.chart-date,
+.chart-y-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chart-value,
+.chart-date {
+  text-anchor: middle;
+}
+
+.chart-y-label {
+  fill: var(--muted);
+  text-anchor: end;
+}
+
+.chart-date,
+.chart-y-label {
+  fill: var(--muted);
+}
+
+.chart-empty {
+  padding: 10px;
 }
 
 .chart-bars {
@@ -375,10 +548,6 @@ label,
 .chart-bar-wrap span {
   color: var(--muted);
   font-size: 9px;
-}
-
-.chart-empty {
-  padding: 10px;
 }
 
 .shift-card::before {
@@ -440,6 +609,7 @@ label,
   padding: 8px;
   border-radius: 10px;
   background: var(--panel-2);
+  text-align: center;
 }
 
 .breakdown span {
@@ -495,6 +665,31 @@ label,
 .tax-panel,
 .backup-panel {
   margin-bottom: 12px;
+}
+
+.cost-tile-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.cost-tile {
+  justify-content: center;
+  min-height: 112px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cost-tile input {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .tax-grid {
@@ -587,6 +782,16 @@ textarea {
   min-height: 36px;
 }
 
+#newOverviewButton,
+#exportPdfButton {
+  min-width: 0;
+  padding-right: clamp(7px, 1.8vw, 13px);
+  padding-left: clamp(7px, 1.8vw, 13px);
+  font-size: clamp(12px, 3.3vw, 15px);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
 .icon-button {
   width: 42px;
   padding: 0;
@@ -595,20 +800,25 @@ textarea {
 
 .tabbar {
   position: fixed;
+  z-index: 50;
   right: 0;
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 7px;
   padding: 10px 10px calc(env(safe-area-inset-bottom) + 10px);
-  background: rgba(250, 251, 249, 0.94);
+  background: var(--panel);
+  background-color: var(--panel);
+  background-image: none;
   border-top: 1px solid var(--line);
-  backdrop-filter: blur(16px);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.12);
 }
 
 :root[data-theme="dark"] .tabbar {
-  background: rgba(16, 21, 19, 0.92);
+  background: var(--panel);
+  background-color: var(--panel);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.55);
 }
 
 .tabbar button {
@@ -616,8 +826,8 @@ textarea {
   border: 0;
   border-radius: 13px;
   color: var(--muted);
-  background: transparent;
-  font-size: 13px;
+  background: var(--panel-2);
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -625,6 +835,10 @@ textarea {
   color: #fff;
   background: var(--accent);
   box-shadow: 0 8px 20px rgba(13, 122, 104, 0.22);
+}
+
+body.has-wallpaper .tabbar {
+  backdrop-filter: none;
 }
 
 dialog {
@@ -676,6 +890,82 @@ dialog header,
 .preferences-section:first-of-type {
   padding-top: 0;
   border-top: 0;
+}
+
+.preferences-title-row {
+  align-items: start;
+}
+
+.theme-mode-control {
+  display: grid;
+  grid-template-columns: auto minmax(88px, 1fr);
+  align-items: center;
+  gap: 5px 8px;
+  justify-self: end;
+  max-width: 210px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.theme-mode-control span {
+  grid-column: 1 / -1;
+}
+
+.theme-mode-control svg,
+.delete-icon-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-mode-control svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
+  color: var(--warn);
+}
+
+.theme-mode-control select {
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.wallpaper-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: end;
+  gap: 8px;
+}
+
+.delete-icon-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-height: 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 0;
+  color: var(--danger);
+  background: transparent;
+  opacity: 0.82;
+}
+
+.delete-icon-button svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.delete-icon-button:hover,
+.delete-icon-button:focus-visible {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  opacity: 1;
 }
 
 .detail-grid {
@@ -731,16 +1021,6 @@ dialog h2 {
     grid-template-columns: 1fr;
   }
 
-  #view-overview .section-title {
-    grid-template-columns: auto 1fr;
-  }
-
-  #monthPicker,
-  #newOverviewButton,
-  #exportPdfButton {
-    grid-column: span 1;
-  }
-
   .metrics strong {
     font-size: 19px;
   }
@@ -773,7 +1053,7 @@ h3 {
 }
 
 .metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
   margin-bottom: 0;
 }
@@ -783,13 +1063,6 @@ h3 {
   min-height: 54px;
   padding: 6px 7px;
   border-radius: 10px;
-}
-
-.metrics article::after {
-  right: 7px;
-  bottom: 5px;
-  width: 16px;
-  height: 2px;
 }
 
 .metrics span,
@@ -875,8 +1148,27 @@ label,
   margin-bottom: 8px;
 }
 
+.cost-tile-grid {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cost-tile {
+  min-height: 82px;
+  padding: 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  line-height: 1.05;
+}
+
+.cost-tile input {
+  min-height: 34px;
+  padding: 6px;
+  font-size: clamp(12px, 3.3vw, 15px);
+}
+
 .tax-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin-top: 8px;
 }
@@ -942,7 +1234,7 @@ textarea {
   }
 
   .metrics {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 5px;
   }
 

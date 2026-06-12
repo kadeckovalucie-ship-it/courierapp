@@ -66,6 +66,7 @@ function cacheElements() {
     profileNameInput: document.querySelector("#profileNameInput"),
     newProfileButton: document.querySelector("#newProfileButton"),
     deleteProfileButton: document.querySelector("#deleteProfileButton"),
+    restoreDemoProfileButton: document.querySelector("#restoreDemoProfileButton"),
     themeSelect: document.querySelector("#themeSelect"),
     wallpaperInput: document.querySelector("#wallpaperInput"),
     clearWallpaperButton: document.querySelector("#clearWallpaperButton"),
@@ -125,6 +126,7 @@ function bindEvents() {
   els.profileNameInput.addEventListener("input", updateProfile);
   els.newProfileButton.addEventListener("click", createProfile);
   els.deleteProfileButton.addEventListener("click", deleteProfile);
+  els.restoreDemoProfileButton.addEventListener("click", restoreDemoProfile);
   els.themeSelect.addEventListener("change", updateAppearance);
   els.aboutButton.addEventListener("click", () => els.aboutDialog.showModal());
   els.closeAboutButton.addEventListener("click", () => els.aboutDialog.close());
@@ -213,6 +215,31 @@ function normalizeStore(store) {
     ? savedActiveProfile.id
     : demoProfile?.id || profiles[0].id;
   return { activeProfileId, profiles };
+}
+
+function restoreDemoProfile() {
+  const existingIndex = profileStore.profiles.findIndex((item) => (
+    item.demoVersion > 0 || item.profile?.profileName === DEMO_PROFILE_NAME || item.profile?.profileName === OLD_DEMO_PROFILE_NAME
+  ));
+  const existingId = existingIndex >= 0 ? profileStore.profiles[existingIndex].id : crypto.randomUUID();
+  const demoProfile = createDemoProfile(existingId);
+  if (existingIndex >= 0) {
+    profileStore.profiles[existingIndex] = demoProfile;
+  } else {
+    profileStore.profiles.unshift(demoProfile);
+  }
+  state = demoProfile;
+  profileStore.activeProfileId = demoProfile.id;
+  fillSettingsForm();
+  fillProfileForm();
+  fillHistorySort();
+  applyAppearance();
+  els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
+  syncAverageShiftIncomeField();
+  els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+  els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
+  saveState();
+  render();
 }
 
 function normalizeProfile(profileData, fallbackName = PROFILE_PLACEHOLDER_NAME) {

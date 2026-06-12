@@ -1101,6 +1101,62 @@ dialog header,
   border-top: 0;
 }
 
+#view-preferences {
+  position: relative;
+}
+
+.info-button {
+  position: fixed;
+  right: 18px;
+  bottom: calc(env(safe-area-inset-bottom) + 86px);
+  z-index: 45;
+  width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0;
+  color: var(--muted);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.info-button:hover,
+.info-button:focus-visible {
+  color: var(--accent);
+}
+
+.about-panel {
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.about-content {
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.about-content h3 {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.about-content p,
+.about-content ul {
+  margin: 0;
+}
+
+.about-content ul {
+  padding-left: 19px;
+}
+
 .preferences-title-row {
   align-items: start;
 }

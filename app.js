@@ -71,6 +71,9 @@ function cacheElements() {
     clearWallpaperButton: document.querySelector("#clearWallpaperButton"),
     backupInput: document.querySelector("#backupInput"),
     backupStatus: document.querySelector("#backupStatus"),
+    aboutButton: document.querySelector("#aboutButton"),
+    aboutDialog: document.querySelector("#aboutDialog"),
+    closeAboutButton: document.querySelector("#closeAboutButton"),
     monthlyShiftCount: document.querySelector("#monthlyShiftCount"),
     averageShiftIncome: document.querySelector("#averageShiftIncome"),
     flatExpenseRate: document.querySelector("#flatExpenseRate"),
@@ -123,6 +126,8 @@ function bindEvents() {
   els.newProfileButton.addEventListener("click", createProfile);
   els.deleteProfileButton.addEventListener("click", deleteProfile);
   els.themeSelect.addEventListener("change", updateAppearance);
+  els.aboutButton.addEventListener("click", () => els.aboutDialog.showModal());
+  els.closeAboutButton.addEventListener("click", () => els.aboutDialog.close());
   els.wallpaperInput.addEventListener("change", updateWallpaper);
   els.clearWallpaperButton.addEventListener("click", clearWallpaper);
   els.backupInput.addEventListener("change", importBackup);

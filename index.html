@@ -16,7 +16,7 @@
       <header class="app-header">
         <div>
           <p class="eyebrow" id="headerSubtitle">Profil</p>
-          <h1 id="headerTitle">Můj profil</h1>
+          <h1 id="headerTitle">Název profilu</h1>
         </div>
       </header>
 
@@ -28,6 +28,7 @@
             <button class="primary small" id="newOverviewButton" type="button">Nový měsíc</button>
             <button class="secondary small" id="exportPdfButton" type="button">Export PDF</button>
           </div>
+          <div class="service-filter" id="serviceFilter" aria-label="Filtr služeb"></div>
           <section class="dashboard-box">
             <div class="metrics" id="metricsGrid">
               <article>
@@ -47,7 +48,7 @@
                 <strong id="metricKm">0 km</strong>
               </article>
               <article class="metric-middle-right">
-                <span>Palivo</span>
+                <span>Náklady na km</span>
                 <strong id="metricFuel">0 Kč</strong>
               </article>
               <article id="metricTaxesTile">
@@ -89,6 +90,22 @@
             <h2 id="importTitle">Import</h2>
           </div>
           <div class="stack">
+            <fieldset class="service-picker import-service-picker">
+              <legend>Služba</legend>
+              <label>
+                <input name="importService" type="radio" value="Foodora">
+                Foodora
+              </label>
+              <label>
+                <input name="importService" type="radio" value="Wolt">
+                Wolt
+              </label>
+              <label>
+                <input name="importService" type="radio" value="Bolt">
+                Bolt
+              </label>
+              <p class="service-warning"><span class="warning-icon" aria-hidden="true">!</span> Vyber službu</p>
+            </fieldset>
             <article class="panel">
               <h3>Kniha jízd</h3>
               <input id="pdfInput" type="file" accept="application/pdf">
@@ -99,7 +116,6 @@
                   <input id="manualPdfKm" type="text" inputmode="decimal">
                 </label>
               </div>
-              <button class="secondary" id="saveManualPdfButton" type="button">Uložit</button>
               <p class="status" id="pdfStatus"></p>
             </article>
 
@@ -117,9 +133,9 @@
                   <input id="manualHours" type="text" inputmode="decimal">
                 </label>
               </div>
-              <button class="secondary" id="saveManualEarningsButton" type="button">Uložit</button>
               <p class="status" id="ocrStatus"></p>
             </article>
+            <button class="primary" id="saveImportButton" type="button">Uložit</button>
           </div>
         </section>
 
@@ -135,10 +151,27 @@
             <label class="cost-tile">
               Cena paliva / litr
               <input name="fuelPrice" type="text" inputmode="decimal">
+              <small id="fuelPriceMeta">Zdroj: mBenzin.cz, zatím nenačteno</small>
             </label>
             <label class="cost-tile">
               Pronájem vozidla / měsíc
               <input name="vehicleRent" type="text" inputmode="decimal">
+            </label>
+            <label class="cost-tile">
+              Typ paliva
+              <select name="fuelType">
+                <option value="gasoline">Benzín</option>
+                <option value="diesel">Diesel</option>
+                <option value="lpg">LPG</option>
+              </select>
+            </label>
+            <label class="cost-tile">
+              Rok výroby
+              <input name="productionYear" type="text" inputmode="numeric">
+            </label>
+            <label class="cost-tile">
+              Amortizace
+              <input name="amortizationMonthly" type="text" readonly>
             </label>
           </form>
           <label class="side-income-toggle">
@@ -203,7 +236,7 @@
                 </label>
                 <label>
                   Název profilu
-                  <input id="profileNameInput" type="text" placeholder="Můj profil">
+                  <input id="profileNameInput" type="text" placeholder="Název profilu">
                 </label>
                 <div class="profile-actions">
                   <button class="secondary" id="newProfileButton" type="button">Nový profil</button>
@@ -268,10 +301,22 @@
           Datum
           <input name="date" type="date" required>
         </label>
-        <label>
-          Název
-          <input name="title" type="text" required placeholder="Foodora / Wolt">
-        </label>
+        <fieldset class="service-picker">
+          <legend>Služba</legend>
+          <label>
+            <input name="title" type="radio" value="Foodora" required>
+            Foodora
+          </label>
+          <label>
+            <input name="title" type="radio" value="Wolt">
+            Wolt
+          </label>
+          <label>
+            <input name="title" type="radio" value="Bolt">
+            Bolt
+          </label>
+          <p class="service-warning"><span class="warning-icon" aria-hidden="true">!</span> Vyber službu</p>
+        </fieldset>
         <label>
           Kilometry
           <input name="kilometers" type="text" inputmode="decimal" required>
@@ -283,10 +328,6 @@
         <label>
           Výdělek
           <input name="income" type="text" inputmode="decimal">
-        </label>
-        <label>
-          Poznámka
-          <textarea name="notes" rows="3"></textarea>
         </label>
         <div class="dialog-actions">
           <button class="danger" id="deleteShiftButton" type="button">Smazat</button>

@@ -1,7 +1,15 @@
 const STORAGE_KEY = "naklady-smen-profiles-v1";
 const LEGACY_STORAGE_KEY = "naklady-smen-web-v1";
-const DEMO_PROFILE_NAME = "Zkušební profil";
-const DEMO_PROFILE_VERSION = 3;
+const PROFILE_PLACEHOLDER_NAME = "Název profilu";
+const DEMO_PROFILE_NAME = "Název profilu";
+const OLD_DEMO_PROFILE_NAME = "Zkušební profil";
+const DEMO_PROFILE_VERSION = 4;
+const SERVICE_OPTIONS = ["Wolt", "Foodora", "Bolt"];
+const FUEL_PRICE_SOURCE_NAME = "mBenzin.cz";
+const FUEL_PRICE_SOURCE_URL = "https://www.mbenzin.cz/";
+const FUEL_PRICE_PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(FUEL_PRICE_SOURCE_URL)}`;
+let selectedServices = new Set(SERVICE_OPTIONS);
+let pendingPdfImports = [];
 
 const profileStore = loadProfileStore();
 let state = getActiveProfile();
@@ -12,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   setDefaults();
   render();
+  refreshFuelPriceIfOnline();
   registerServiceWorker();
 });
 
@@ -24,11 +33,13 @@ function cacheElements() {
     monthDisplayButton: document.querySelector("#monthDisplayButton"),
     newOverviewButton: document.querySelector("#newOverviewButton"),
     exportPdfButton: document.querySelector("#exportPdfButton"),
+    serviceFilter: document.querySelector("#serviceFilter"),
     monthPicker: document.querySelector("#monthPicker"),
     metricsGrid: document.querySelector("#metricsGrid"),
     metricIncome: document.querySelector("#metricIncome"),
     metricKm: document.querySelector("#metricKm"),
     metricFuel: document.querySelector("#metricFuel"),
+    fuelPriceMeta: document.querySelector("#fuelPriceMeta"),
     metricTaxes: document.querySelector("#metricTaxes"),
     metricRent: document.querySelector("#metricRent"),
     metricRentTile: document.querySelector("#metricRentTile"),
@@ -70,13 +81,12 @@ function cacheElements() {
     pdfStatus: document.querySelector("#pdfStatus"),
     manualPdfDate: document.querySelector("#manualPdfDate"),
     manualPdfKm: document.querySelector("#manualPdfKm"),
-    saveManualPdfButton: document.querySelector("#saveManualPdfButton"),
+    saveImportButton: document.querySelector("#saveImportButton"),
     earningsInput: document.querySelector("#earningsInput"),
     ocrStatus: document.querySelector("#ocrStatus"),
     manualEarningsDate: document.querySelector("#manualEarningsDate"),
     manualIncome: document.querySelector("#manualIncome"),
     manualHours: document.querySelector("#manualHours"),
-    saveManualEarningsButton: document.querySelector("#saveManualEarningsButton"),
     downloadBackupButton: document.querySelector("#downloadBackupButton"),
   });
 }
@@ -97,6 +107,9 @@ function bindEvents() {
   });
   els.newOverviewButton.addEventListener("click", createOverview);
   els.exportPdfButton.addEventListener("click", exportCurrentOverviewPdf);
+  document.querySelectorAll('input[name="title"], input[name="importService"]').forEach((input) => {
+    input.addEventListener("change", () => setServiceWarning(input.closest(".service-picker"), false));
+  });
   els.historySortSelect.addEventListener("change", updateHistorySort);
   els.shiftForm.addEventListener("submit", saveShiftFromDialog);
   els.closeShiftDetailButton.addEventListener("click", () => els.shiftDetailDialog.close());
@@ -104,6 +117,7 @@ function bindEvents() {
   els.deleteShiftDetailButton.addEventListener("click", deleteShiftFromDetail);
   els.deleteShiftButton.addEventListener("click", deleteSelectedShift);
   els.settingsForm.addEventListener("input", updateSettings);
+  els.settingsForm.addEventListener("change", updateSettings);
   els.profileSelect.addEventListener("change", switchProfile);
   els.profileNameInput.addEventListener("input", updateProfile);
   els.newProfileButton.addEventListener("click", createProfile);
@@ -118,8 +132,7 @@ function bindEvents() {
   els.sideIncomeToggle.addEventListener("change", updateBusinessEstimate);
   els.pdfInput.addEventListener("change", handlePdfImport);
   els.earningsInput.addEventListener("change", handleEarningsImport);
-  els.saveManualPdfButton.addEventListener("click", saveManualKilometers);
-  els.saveManualEarningsButton.addEventListener("click", saveManualEarnings);
+  els.saveImportButton.addEventListener("click", saveImportData);
   els.downloadBackupButton.addEventListener("click", exportData);
 }
 
@@ -153,7 +166,7 @@ function loadProfileStore() {
         ...legacy,
         id: crypto.randomUUID(),
         profile: {
-          profileName: legacy.profile?.profileName || legacy.profile?.appName || "Můj profil",
+          profileName: legacy.profile?.profileName || legacy.profile?.appName || PROFILE_PLACEHOLDER_NAME,
         },
       });
       return { activeProfileId: profile.id, profiles: [profile] };
@@ -162,7 +175,7 @@ function loadProfileStore() {
     // Fall through to defaults.
   }
 
-  const profile = createDefaultProfile("Můj profil");
+  const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
   const demoProfile = createDemoProfile();
   return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
 }
@@ -170,11 +183,11 @@ function loadProfileStore() {
 function normalizeStore(store) {
   const profiles = (store.profiles || []).map((item, index) => normalizeProfile(item, `Profil ${index + 1}`));
   if (!profiles.length) {
-    const profile = createDefaultProfile("Můj profil");
+    const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
     const demoProfile = createDemoProfile();
     return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
   }
-  const demoProfileIndex = profiles.findIndex((item) => item.profile?.profileName === DEMO_PROFILE_NAME);
+  const demoProfileIndex = profiles.findIndex((item) => item.demoVersion > 0 || item.profile?.profileName === OLD_DEMO_PROFILE_NAME);
   if (demoProfileIndex >= 0 && profiles[demoProfileIndex].demoVersion !== DEMO_PROFILE_VERSION) {
     profiles[demoProfileIndex] = createDemoProfile(profiles[demoProfileIndex].id);
   } else if (demoProfileIndex < 0) {
@@ -186,7 +199,7 @@ function normalizeStore(store) {
   return { activeProfileId, profiles };
 }
 
-function normalizeProfile(profileData, fallbackName = "Můj profil") {
+function normalizeProfile(profileData, fallbackName = PROFILE_PLACEHOLDER_NAME) {
   return {
     id: profileData.id || crypto.randomUUID(),
     shifts: Array.isArray(profileData.shifts) ? profileData.shifts : [],
@@ -195,6 +208,16 @@ function normalizeProfile(profileData, fallbackName = "Můj profil") {
       consumption: profileData.settings?.consumption ?? 10,
       fuelPrice: profileData.settings?.fuelPrice ?? 39,
       vehicleRent: profileData.settings?.vehicleRent ?? 0,
+      fuelType: profileData.settings?.fuelType || "gasoline",
+      productionYear: profileData.settings?.productionYear ?? 2020,
+      amortizationMonthly: profileData.settings?.amortizationMonthly ?? 0,
+      fuelPrices: {
+        gasoline: profileData.settings?.fuelPrices?.gasoline ?? 0,
+        diesel: profileData.settings?.fuelPrices?.diesel ?? 0,
+        lpg: profileData.settings?.fuelPrices?.lpg ?? 0,
+        updatedAt: profileData.settings?.fuelPrices?.updatedAt || "",
+        source: profileData.settings?.fuelPrices?.source || FUEL_PRICE_SOURCE_NAME,
+      },
       fixed: profileData.settings?.fixed || {
         social: 0,
         health: 0,
@@ -243,6 +266,16 @@ function createDemoProfile(id = crypto.randomUUID()) {
       consumption: 10,
       fuelPrice: 39,
       vehicleRent: 4200,
+      fuelType: "gasoline",
+      productionYear: 2020,
+      amortizationMonthly: 0,
+      fuelPrices: {
+        gasoline: 0,
+        diesel: 0,
+        lpg: 0,
+        updatedAt: "",
+        source: FUEL_PRICE_SOURCE_NAME,
+      },
     },
     business: {
       monthlyShiftCount: demoShifts.length,
@@ -286,7 +319,7 @@ function createDemoShifts(month) {
   return sampleDays.map((day, index) => ({
     id: crypto.randomUUID(),
     date: `${month}-${String(day).padStart(2, "0")}`,
-    title: "Zkušební směna",
+    title: SERVICE_OPTIONS[index % SERVICE_OPTIONS.length],
     kilometers: samples[index].km,
     hours: samples[index].hours,
     income: samples[index].income,
@@ -318,6 +351,10 @@ function fillSettingsForm() {
   els.settingsForm.elements.consumption.value = settings.consumption;
   els.settingsForm.elements.fuelPrice.value = settings.fuelPrice;
   els.settingsForm.elements.vehicleRent.value = settings.vehicleRent || "";
+  els.settingsForm.elements.fuelType.value = settings.fuelType || "gasoline";
+  els.settingsForm.elements.productionYear.value = settings.productionYear || "";
+  els.settingsForm.elements.amortizationMonthly.value = `${formatInputNumber(amortizationRatePerKm(), 2)} Kč / km`;
+  renderFuelPriceMeta();
 }
 
 function fillHistorySort() {
@@ -336,7 +373,7 @@ function updateHistorySort() {
 function profile() {
   const savedProfile = state.profile || {};
   state.profile = {
-    profileName: savedProfile.profileName || savedProfile.appName || "Můj profil",
+    profileName: savedProfile.profileName || savedProfile.appName || PROFILE_PLACEHOLDER_NAME,
   };
   return state.profile;
 }
@@ -352,12 +389,12 @@ function fillProfileForm() {
 }
 
 function profileLabel(profileData) {
-  return profileData.profile?.profileName || "Můj profil";
+  return profileData.profile?.profileName || PROFILE_PLACEHOLDER_NAME;
 }
 
 function updateProfile() {
   state.profile = {
-    profileName: els.profileNameInput.value.trim() || "Můj profil",
+    profileName: els.profileNameInput.value.trim() || PROFILE_PLACEHOLDER_NAME,
   };
   saveState();
   fillProfileForm();
@@ -403,7 +440,7 @@ function deleteProfile() {
   if (!window.confirm("Smazat vybraný profil i jeho data?")) return;
 
   if (profileStore.profiles.length === 1) {
-    const replacement = createDefaultProfile("Můj profil");
+    const replacement = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
     profileStore.profiles = [replacement];
     state = replacement;
   } else {
@@ -424,14 +461,36 @@ function deleteProfile() {
   render();
 }
 
-function updateSettings() {
+function updateSettings(event) {
   const form = els.settingsForm.elements;
+  const previousFuelType = state.settings.fuelType || "gasoline";
+  const nextFuelType = form.fuelType.value || "gasoline";
+  let fuelPrice = numberValue(form.fuelPrice.value);
+  if (event?.target?.name === "fuelType" && nextFuelType !== previousFuelType) {
+    const averagePrice = averageFuelPrice(nextFuelType);
+    if (averagePrice > 0) {
+      fuelPrice = averagePrice;
+      form.fuelPrice.value = formatInputNumber(averagePrice, 2);
+    }
+  }
   state.settings = {
     consumption: numberValue(form.consumption.value),
-    fuelPrice: numberValue(form.fuelPrice.value),
+    fuelPrice,
     vehicleRent: numberValue(form.vehicleRent.value),
+    fuelType: nextFuelType,
+    productionYear: numberValue(form.productionYear.value),
+    amortizationMonthly: state.settings.amortizationMonthly || 0,
+    fuelPrices: state.settings.fuelPrices || {
+      gasoline: 0,
+      diesel: 0,
+      lpg: 0,
+      updatedAt: "",
+      source: FUEL_PRICE_SOURCE_NAME,
+    },
     fixed: state.settings.fixed || { social: 0, health: 0, sickness: 0, pension: 0, tax: 0 },
   };
+  form.amortizationMonthly.value = `${formatInputNumber(amortizationRatePerKm(), 2)} Kč / km`;
+  renderFuelPriceMeta();
   saveState();
   render();
 }
@@ -528,12 +587,13 @@ function render() {
   const monthShifts = state.shifts
     .filter((shift) => shift.date?.startsWith(month))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const totals = calculateMonthTotals(month);
+  const visibleShifts = filterShiftsByService(monthShifts);
+  const totals = calculateShiftTotals(visibleShifts);
   const profit = totals.income - totals.cost;
 
   els.metricIncome.textContent = formatMoney(totals.income);
   els.metricKm.textContent = formatKm(totals.km);
-  els.metricFuel.textContent = formatMoney(totals.fuel);
+  els.metricFuel.textContent = formatMoney(totals.fuel + totals.amortization);
   els.metricTaxes.textContent = formatMoney(totals.taxes);
   els.metricRent.textContent = formatMoney(totals.rent);
   const hasVehicleRent = state.settings.vehicleRent > 0;
@@ -547,8 +607,9 @@ function render() {
   els.metricHourly.closest("article").classList.toggle("positive", profit >= 0);
   els.metricHourly.closest("article").classList.toggle("negative", profit < 0);
 
-  els.overviewList.innerHTML = renderDashboardShiftTiles(monthShifts);
-  els.profitChart.innerHTML = renderProfitChart(monthShifts);
+  renderServiceFilter();
+  els.overviewList.innerHTML = renderDashboardShiftTiles(visibleShifts);
+  els.profitChart.innerHTML = renderProfitChart(visibleShifts);
   els.shiftList.innerHTML = renderOverviewHistoryCards(getOverviewMonths());
   renderTaxEstimate();
   bindDashboardShiftTiles();
@@ -661,7 +722,7 @@ function renderShiftCards(shifts) {
           ${mapUrl ? `<a class="map-link" href="${mapUrl}" target="_blank" rel="noopener">Mapa celého dne</a>` : ""}
           <div class="breakdown">
             <div><span>Příjem</span><strong>${formatMoney(shift.income)}</strong></div>
-            <div><span>Palivo</span><strong>${formatMoney(breakdown.fuelCost)}</strong></div>
+            <div><span>Náklady na km</span><strong>${formatMoney(breakdown.fuelCost + breakdown.amortizationShare)}</strong></div>
             <div><span>Kilometry</span><strong>${formatKm(shift.kilometers)}</strong></div>
             <div><span>Hodiny</span><strong>${formatHours(shift.hours)}</strong></div>
           </div>
@@ -724,7 +785,7 @@ function renderOverviewHistoryCards(months) {
           </div>
         </div>
         <div class="breakdown">
-          <div><span>Benzín</span><strong>${formatMoney(totals.fuel)}</strong></div>
+          <div><span>Náklady/km</span><strong>${formatMoney(totals.fuel + totals.amortization)}</strong></div>
           <div><span>Kilometry</span><strong>${formatKm(totals.km)}</strong></div>
           <div><span>Hodiny</span><strong>${formatHours(totals.hours)}</strong></div>
           <div><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
@@ -777,8 +838,11 @@ function deleteOverview(month) {
 }
 
 function calculateMonthTotals(month) {
-  return state.shifts
-    .filter((shift) => shift.date?.startsWith(month))
+  return calculateShiftTotals(state.shifts.filter((shift) => shift.date?.startsWith(month)));
+}
+
+function calculateShiftTotals(shifts) {
+  return shifts
     .reduce(
       (acc, shift) => {
         const breakdown = getBreakdown(shift);
@@ -787,12 +851,62 @@ function calculateMonthTotals(month) {
         acc.fuel += breakdown.fuelCost;
         acc.taxes += breakdown.osvcShare;
         acc.rent += breakdown.vehicleRentShare;
+        acc.amortization += breakdown.amortizationShare;
         acc.cost += breakdown.totalCost;
         acc.income += shift.income;
         return acc;
       },
-      { km: 0, hours: 0, fuel: 0, taxes: 0, rent: 0, cost: 0, income: 0 }
+      { km: 0, hours: 0, fuel: 0, taxes: 0, rent: 0, amortization: 0, cost: 0, income: 0 }
     );
+}
+
+function filterShiftsByService(shifts) {
+  return shifts.filter((shift) => selectedServices.has(normalizeServiceName(shift.title)));
+}
+
+function normalizeServiceName(value) {
+  const service = SERVICE_OPTIONS.find((item) => item.toLowerCase() === String(value || "").trim().toLowerCase());
+  return service || "Foodora";
+}
+
+function isServiceName(value) {
+  return SERVICE_OPTIONS.includes(value);
+}
+
+function selectedImportService() {
+  return document.querySelector('input[name="importService"]:checked')?.value || "";
+}
+
+function setServiceWarning(scope, visible) {
+  scope?.classList.toggle("show-service-warning", Boolean(visible));
+}
+
+function renderServiceFilter() {
+  if (!els.serviceFilter) return;
+  const allSelected = selectedServices.size === SERVICE_OPTIONS.length;
+  els.serviceFilter.innerHTML = [
+    `<button class="service-chip${allSelected ? " active" : ""}" data-service="all" type="button">Vše</button>`,
+    ...SERVICE_OPTIONS.map((service) => `
+      <button class="service-chip${selectedServices.has(service) ? " active" : ""}" data-service="${service}" type="button">${service}</button>
+    `),
+  ].join("");
+
+  els.serviceFilter.querySelectorAll(".service-chip").forEach((button) => {
+    button.addEventListener("click", () => toggleServiceFilter(button.dataset.service));
+  });
+}
+
+function toggleServiceFilter(service) {
+  if (service === "all") {
+    selectedServices = new Set(SERVICE_OPTIONS);
+  } else if (selectedServices.size === SERVICE_OPTIONS.length) {
+    selectedServices = new Set([service]);
+  } else if (selectedServices.has(service) && selectedServices.size > 1) {
+    selectedServices.delete(service);
+  } else {
+    selectedServices.add(service);
+  }
+  render();
 }
 
 function renderProfitChart(shifts) {
@@ -902,9 +1016,10 @@ function exportCurrentOverviewPdf() {
   const monthShifts = state.shifts
     .filter((shift) => shift.date?.startsWith(month))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const totals = calculateMonthTotals(month);
+  const visibleShifts = filterShiftsByService(monthShifts);
+  const totals = calculateShiftTotals(visibleShifts);
   const profit = totals.income - totals.cost;
-  const html = buildOverviewPdfHtml(month, monthShifts, totals, profit);
+  const html = buildOverviewPdfHtml(month, visibleShifts, totals, profit);
   const printWindow = window.open("", "_blank");
 
   if (!printWindow) {
@@ -923,7 +1038,7 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
   const title = capitalizeFirst(formatMonthLabel(month));
   const totalCosts = [
     ["OSVČ", totals.taxes],
-    ["Palivo", totals.fuel],
+    ["Náklady na km", totals.fuel + totals.amortization],
     ["Pronájem", totals.rent],
   ].filter(([, value]) => value > 0);
   const rows = shifts.length
@@ -1069,7 +1184,7 @@ function openShiftDetailDialog(shift) {
     ["Hodinový obrat", shift.hours > 0 ? formatMoney(shift.income / shift.hours) : "Bez hodin"],
     ["Kilometry", formatKm(shift.kilometers)],
     ["Hodiny", formatHours(shift.hours)],
-    ["Palivo", formatMoney(breakdown.fuelCost)],
+    ["Náklady na km", formatMoney(breakdown.fuelCost + breakdown.amortizationShare)],
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
 
   els.shiftDetailMap.hidden = !mapUrl;
@@ -1099,7 +1214,8 @@ function getBreakdown(shift) {
   const fuelCost = fuelLiters * state.settings.fuelPrice;
   const osvcShare = osvcCostShare(shift);
   const vehicleRentShare = vehicleRentShareForShift(shift);
-  const totalCost = fuelCost + osvcShare + vehicleRentShare;
+  const amortizationShare = amortizationShareForShift(shift);
+  const totalCost = fuelCost + osvcShare + vehicleRentShare + amortizationShare;
   const profit = shift.income - totalCost;
 
   return {
@@ -1107,6 +1223,7 @@ function getBreakdown(shift) {
     fuelCost,
     osvcShare,
     vehicleRentShare,
+    amortizationShare,
     osvcCostPerHour: shift.hours > 0 ? osvcShare / shift.hours : null,
     totalCost,
     profit,
@@ -1120,6 +1237,88 @@ function vehicleRentShareForShift(shift) {
   const monthHours = totalHoursForMonth(month);
   if (!monthHours) return 0;
   return ((state.settings.vehicleRent || 0) / monthHours) * shift.hours;
+}
+
+function amortizationShareForShift(shift) {
+  return (shift.kilometers || 0) * amortizationRatePerKm();
+}
+
+function amortizationRatePerKm() {
+  return 2.0 * ageAmortizationCoefficient(state.settings.productionYear) * fuelAmortizationCoefficient(state.settings.fuelType);
+}
+
+function ageAmortizationCoefficient(year) {
+  const value = Number(year) || 0;
+  if (value >= 2020) return 1.2;
+  if (value >= 2010) return 1.0;
+  if (value >= 2000) return 1.3;
+  return 1.6;
+}
+
+function fuelAmortizationCoefficient(fuelType) {
+  if (fuelType === "diesel") return 1.4;
+  if (fuelType === "lpg") return 1.15;
+  return 1.0;
+}
+
+function averageFuelPrice(fuelType = state.settings.fuelType) {
+  return Number(state.settings.fuelPrices?.[fuelType] || 0);
+}
+
+async function refreshFuelPriceIfOnline() {
+  if (!navigator.onLine) {
+    renderFuelPriceMeta();
+    return;
+  }
+  try {
+    const response = await fetch(FUEL_PRICE_PROXY_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error("Cena paliva není dostupná.");
+    const html = await response.text();
+    const prices = parseFuelPrices(html);
+    if (!prices) throw new Error("Ceny se nepovedlo přečíst.");
+    state.settings.fuelPrices = {
+      ...prices,
+      updatedAt: new Date().toISOString(),
+      source: FUEL_PRICE_SOURCE_NAME,
+    };
+    const price = averageFuelPrice();
+    if (price > 0) {
+      state.settings.fuelPrice = price;
+      if (els.settingsForm) {
+        els.settingsForm.elements.fuelPrice.value = formatInputNumber(price, 2);
+      }
+    }
+    saveState();
+    renderFuelPriceMeta();
+    render();
+  } catch {
+    renderFuelPriceMeta();
+  }
+}
+
+function parseFuelPrices(html) {
+  const marker = "Aktuální průměrné ceny benzínu a nafty v ČR";
+  const index = html.indexOf(marker);
+  if (index < 0) return null;
+  const normalized = html
+    .slice(index)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ");
+  const matches = normalized.match(/\d{1,3},\d{2}/g);
+  if (!matches || matches.length < 3) return null;
+  const values = matches.slice(0, 3).map((item) => numberValue(item));
+  if (values.some((item) => item <= 0)) return null;
+  return { gasoline: values[0], diesel: values[1], lpg: values[2] };
+}
+
+function renderFuelPriceMeta() {
+  if (!els.fuelPriceMeta) return;
+  const updatedAt = state.settings.fuelPrices?.updatedAt;
+  const source = state.settings.fuelPrices?.source || FUEL_PRICE_SOURCE_NAME;
+  els.fuelPriceMeta.textContent = updatedAt
+    ? `Zdroj: ${source}, načteno ${formatDateTime(updatedAt)}`
+    : `Zdroj: ${source}, zatím nenačteno`;
 }
 
 function osvcCostShare(shift) {
@@ -1146,13 +1345,13 @@ function openShiftDialog(shift = null) {
   els.shiftDialogTitle.textContent = shift ? "Upravit směnu" : "Nová směna";
   els.deleteShiftButton.hidden = !shift;
   const form = els.shiftForm.elements;
+  setServiceWarning(els.shiftForm.querySelector(".service-picker"), false);
   form.id.value = shift?.id || "";
   form.date.value = shift?.date || toDateInput(new Date());
-  form.title.value = shift?.title || "";
+  form.title.value = shift && isServiceName(shift.title) ? shift.title : "";
   form.kilometers.value = shift?.kilometers ?? 0;
   form.hours.value = shift?.hours ?? 0;
   form.income.value = shift?.income ?? 0;
-  form.notes.value = shift?.notes || "";
   els.shiftDialog.showModal();
 }
 
@@ -1160,14 +1359,18 @@ function saveShiftFromDialog(event) {
   if (event.submitter?.value !== "save") return;
   event.preventDefault();
   const form = els.shiftForm.elements;
+  if (!isServiceName(form.title.value)) {
+    setServiceWarning(els.shiftForm.querySelector(".service-picker"), true);
+    return;
+  }
   const shift = {
     id: form.id.value || crypto.randomUUID(),
     date: form.date.value,
-    title: form.title.value.trim() || "Směna",
+    title: form.title.value,
     kilometers: numberValue(form.kilometers.value),
     hours: numberValue(form.hours.value),
     income: numberValue(form.income.value),
-    notes: form.notes.value.trim(),
+    notes: state.shifts.find((item) => item.id === form.id.value)?.notes || "",
     routeStops: state.shifts.find((item) => item.id === form.id.value)?.routeStops || [],
   };
   const existingIndex = state.shifts.findIndex((item) => item.id === shift.id);
@@ -1186,30 +1389,52 @@ function deleteSelectedShift() {
   els.shiftDialog.close();
 }
 
-function saveManualKilometers() {
-  const date = els.manualPdfDate.value || toDateInput(new Date());
-  const kilometers = numberValue(els.manualPdfKm.value);
-  if (!kilometers) {
-    setStatus(els.pdfStatus, "Zadej kilometry.");
+function saveImportData() {
+  const service = selectedImportService();
+  const warningScope = document.querySelector(".import-service-picker");
+  if (!isServiceName(service)) {
+    setServiceWarning(warningScope, true);
+    setStatus(els.pdfStatus, "Nejdřív vyber službu.");
+    setStatus(els.ocrStatus, "");
     return;
   }
-  upsertDailyShift(date, { kilometers }, "Kilometry z PDF");
-  els.manualPdfKm.value = "";
-  setStatus(els.pdfStatus, "Kilometry uloženy.");
-}
 
-function saveManualEarnings() {
-  const date = els.manualEarningsDate.value || toDateInput(new Date());
+  setServiceWarning(warningScope, false);
+  const date = els.manualEarningsDate.value || els.manualPdfDate.value || toDateInput(new Date());
+  const kilometers = numberValue(els.manualPdfKm.value);
   const income = numberValue(els.manualIncome.value);
   const hours = numberValue(els.manualHours.value);
-  if (!income) {
-    setStatus(els.ocrStatus, "Zadej výdělek.");
+  let saved = 0;
+
+  if (pendingPdfImports.length) {
+    pendingPdfImports.forEach((shift) => {
+      upsertDailyShift(shift.date, { ...shift, title: service }, service, { skipRender: true });
+      saved += 1;
+    });
+  } else if (kilometers > 0) {
+    upsertDailyShift(els.manualPdfDate.value || date, { kilometers, title: service }, service, { skipRender: true });
+    saved += 1;
+  }
+
+  if (income > 0) {
+    applyDailyEarnings(date, income, hours || null, service, { skipRender: true });
+    saved += 1;
+  }
+
+  if (!saved) {
+    setStatus(els.pdfStatus, "Není co uložit.");
+    setStatus(els.ocrStatus, "");
     return;
   }
-  applyDailyEarnings(date, income, hours || null);
+
+  pendingPdfImports = [];
+  els.manualPdfKm.value = "";
   els.manualIncome.value = "";
   els.manualHours.value = "";
-  setStatus(els.ocrStatus, "Výdělek uložen.");
+  saveState();
+  render();
+  setStatus(els.pdfStatus, "Import uložen.");
+  setStatus(els.ocrStatus, "");
 }
 
 async function handlePdfImport() {
@@ -1242,9 +1467,13 @@ async function handlePdfImport() {
     }
 
     if (!imported.length) throw new Error("Nenalezeny kilometry.");
-    imported.forEach((shift) => upsertDailyShift(shift.date, shift, "PDF import"));
+    pendingPdfImports = imported;
+    if (imported[0]) {
+      els.manualPdfDate.value = imported[0].date;
+      els.manualPdfKm.value = formatInputNumber(imported[0].kilometers, 1);
+    }
     const trips = imported.reduce((sum, item) => sum + (item.tripCount || 1), 0);
-    setStatus(els.pdfStatus, `Uloženo: ${imported.length} den, ${trips} jízd, ${formatKm(imported.reduce((sum, item) => sum + item.kilometers, 0))}`);
+    setStatus(els.pdfStatus, `Načteno: ${imported.length} den, ${trips} jízd, ${formatKm(imported.reduce((sum, item) => sum + item.kilometers, 0))}. Zkontroluj službu a klikni Uložit.`);
   } catch (error) {
     setStatus(els.pdfStatus, "PDF se nepovedlo přečíst. Zadej km ručně.");
   } finally {
@@ -1268,7 +1497,7 @@ async function handleEarningsImport() {
     els.manualEarningsDate.value = date;
     els.manualIncome.value = formatInputNumber(income, 2);
     if (hours) els.manualHours.value = formatInputNumber(hours, 2);
-    setStatus(els.ocrStatus, `Našla jsem: ${formatMoney(income)}${hours ? `, ${formatHours(hours)}` : ""}${detectedDate ? `, datum ${formatDate(date)}` : ""}. Zkontroluj a klikni Zapsat výdělek.`);
+    setStatus(els.ocrStatus, `Našla jsem: ${formatMoney(income)}${hours ? `, ${formatHours(hours)}` : ""}${detectedDate ? `, datum ${formatDate(date)}` : ""}. Zkontroluj službu a klikni Uložit.`);
   } catch (error) {
     setStatus(els.ocrStatus, "Screenshot se nepovedlo přečíst. Zadej výdělek ručně.");
   } finally {
@@ -1386,7 +1615,7 @@ function parseRideHistoryRows(items) {
   for (const trip of trips) {
     const current = byDate.get(trip.date) || {
       date: trip.date,
-      title: "Jízdy z PDF",
+      title: "Foodora",
       kilometers: 0,
       hours: 0,
       tripCount: 0,
@@ -1434,13 +1663,14 @@ function appendRouteStops(existing, from, to) {
   return stops;
 }
 
-function applyDailyEarnings(date, income, hours) {
+function applyDailyEarnings(date, income, hours, service, options = {}) {
+  if (!isServiceName(service)) return;
   const sameDay = state.shifts.filter((shift) => shift.date === date);
   if (!sameDay.length) {
     state.shifts.push({
       id: crypto.randomUUID(),
       date,
-      title: "Výdělek dne",
+      title: service,
       kilometers: 0,
       hours: hours || 0,
       income,
@@ -1452,20 +1682,25 @@ function applyDailyEarnings(date, income, hours) {
     sameDay.forEach((shift) => {
       const share = totalKm > 0 ? shift.kilometers / totalKm : 1 / sameDay.length;
       shift.income = income * share;
+      shift.title = service;
       if (hours) shift.hours = hours * share;
     });
   }
-  saveState();
-  render();
+  if (!options.skipRender) {
+    saveState();
+    render();
+  }
 }
 
-function upsertDailyShift(date, values, title) {
+function upsertDailyShift(date, values, title, options = {}) {
+  const service = isServiceName(values.title) ? values.title : title;
+  if (!isServiceName(service)) return;
   let shift = state.shifts.find((item) => item.date === date);
   if (!shift) {
     shift = {
       id: crypto.randomUUID(),
       date,
-      title,
+      title: service,
       kilometers: 0,
       hours: 0,
       income: 0,
@@ -1474,9 +1709,12 @@ function upsertDailyShift(date, values, title) {
     };
     state.shifts.push(shift);
   }
+  values.title = service;
   Object.assign(shift, values);
-  saveState();
-  render();
+  if (!options.skipRender) {
+    saveState();
+    render();
+  }
 }
 
 function detectKilometers(text) {
@@ -1781,6 +2019,10 @@ function formatHours(value) {
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("cs-CZ", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("cs-CZ", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function formatMonthLabel(value) {

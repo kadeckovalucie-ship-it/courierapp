@@ -278,6 +278,7 @@
               </div>
             </section>
           </div>
+          <button class="info-button" id="aboutButton" type="button" aria-label="O projektu" title="O projektu">i</button>
         </section>
       </main>
 
@@ -363,6 +364,68 @@
               <path d="M14 11v5"></path>
             </svg>
           </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="aboutDialog">
+      <div class="detail-panel about-panel">
+        <header>
+          <div>
+            <p class="eyebrow">O projektu</p>
+            <h2>CourierNett</h2>
+          </div>
+          <button class="icon-button" id="closeAboutButton" type="button" aria-label="Zavřít">×</button>
+        </header>
+        <div class="about-content">
+          <p>Osobní kalkulačka pro kurýry.</p>
+          <p>CourierNett vzniká jako praktický nástroj pro sledování kurýrních směn, nákladů a reálného čistého zisku. Cílem není vytvořit další složitý systém, ale odstranit co nejvíce administrativy z běžného provozu.</p>
+
+          <h3>Cíl</h3>
+          <ul>
+            <li>sledovat příjem ze směn</li>
+            <li>sledovat kilometry, palivo, amortizaci a další náklady</li>
+            <li>počítat čistý zisk za měsíc i za hodinu</li>
+            <li>připravit přehledné podklady pro vlastní kontrolu nebo účetní</li>
+            <li>minimalizovat ruční přepisování dat</li>
+          </ul>
+
+          <h3>Princip</h3>
+          <ul>
+            <li>data zůstávají v zařízení uživatele</li>
+            <li>aplikace nepoužívá vlastní backend</li>
+            <li>aplikace neukládá soukromá data na externí server</li>
+            <li>záloha dat je ruční a pod kontrolou uživatele</li>
+            <li>cena paliva se může automaticky načíst z veřejného zdroje, ale uživatel ji může kdykoliv přepsat ručně</li>
+          </ul>
+
+          <h3>Stav projektu</h3>
+          <ul>
+            <li>aktivní vývoj</li>
+            <li>používáno v reálném provozu</li>
+            <li>webová verze je funkční bez serveru</li>
+            <li>iOS verze je připravovaná jako nativní aplikace</li>
+          </ul>
+
+          <h3>Plánované funkce</h3>
+          <ul>
+            <li>přesnější automatizace vstupních dat</li>
+            <li>pohodlnější práce s exporty pro účetní</li>
+            <li>beta verze pro iPhone</li>
+            <li>možná podpora Apple Watch pro měření trasy</li>
+            <li>případné cloudové přihlášení až ve chvíli, kdy bude dávat smysl</li>
+          </ul>
+
+          <h3>Neplánované funkce</h3>
+          <ul>
+            <li>doporučování směn</li>
+            <li>predikce výdělků</li>
+            <li>heatmapy restaurací</li>
+            <li>sledování uživatele mimo jeho vlastní data</li>
+            <li>ukládání soukromých směn na cizí server bez jasného důvodu</li>
+          </ul>
+
+          <p>Projekt nevznikl jako ukázkové portfolio. Vznikl z reálné potřeby: mít jednoduchý přehled o tom, kolik kurýrní práce skutečně vydělává po odečtení nákladů.</p>
         </div>
       </div>
     </dialog>

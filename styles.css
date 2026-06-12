@@ -1161,6 +1161,50 @@ dialog header,
   padding-left: 19px;
 }
 
+.about-content blockquote {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--soft);
+  font-weight: 800;
+}
+
+.about-content details {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  background: var(--tile);
+  overflow: hidden;
+}
+
+.about-content summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 900;
+  list-style: none;
+}
+
+.about-content summary::-webkit-details-marker {
+  display: none;
+}
+
+.about-content summary::after {
+  content: "+";
+  float: right;
+  color: var(--accent);
+}
+
+.about-content details[open] summary::after {
+  content: "-";
+}
+
+.about-content details > p,
+.about-content details > ul,
+.about-content details > blockquote {
+  margin: 0 14px 10px;
+}
+
 .preferences-title-row {
   align-items: start;
 }

@@ -379,54 +379,100 @@
           <button class="icon-button" id="closeAboutButton" type="button" aria-label="Zavřít">×</button>
         </header>
         <div class="about-content">
-          <p>Osobní kalkulačka pro kurýry.</p>
-          <p>CourierNett vzniká jako praktický nástroj pro sledování kurýrních směn, nákladů a reálného čistého zisku. Cílem není vytvořit další složitý systém, ale odstranit co nejvíce administrativy z běžného provozu.</p>
+          <blockquote>CourierNett je postavený na předpokladu, že čas kurýra je cennější než absolutní přesnost každého jednotlivého údaje.</blockquote>
+          <h3>O projektu</h3>
+          <p>CourierNett je osobní kalkulačka pro kurýry.</p>
+          <p>Vznikl jako nástroj pro sledování skutečného zisku z kurýrní práce po odečtení nákladů na provoz vozidla a podnikání.</p>
+          <p>Kurýrní aplikace obvykle ukazují pouze výdělek. CourierNett se snaží odpovědět na jinou otázku:</p>
+          <p><strong>Kolik mi dnešní směna skutečně vydělala?</strong></p>
 
-          <h3>Cíl</h3>
-          <ul>
-            <li>sledovat příjem ze směn</li>
-            <li>sledovat kilometry, palivo, amortizaci a další náklady</li>
-            <li>počítat čistý zisk za měsíc i za hodinu</li>
-            <li>připravit přehledné podklady pro vlastní kontrolu nebo účetní</li>
-            <li>minimalizovat ruční přepisování dat</li>
-          </ul>
+          <details>
+            <summary>Jak funguje</summary>
+            <p>CourierNett pracuje s minimálním množstvím vstupních dat.</p>
+            <p>Uživatel dodá údaje o výdělku a vzdálenosti. Ostatní výpočty provádí aplikace automaticky.</p>
+            <ul>
+              <li>příjmy ze směn</li>
+              <li>náklady na palivo</li>
+              <li>amortizace vozidla</li>
+              <li>pravidelné náklady OSVČ</li>
+              <li>hodinový výdělek</li>
+              <li>čistý zisk</li>
+            </ul>
+            <p>Cílem není nahradit účetnictví ani daňovou evidenci.</p>
+            <p>Cílem je odstranit co nejvíce administrativy spojené s běžným provozem.</p>
+          </details>
 
-          <h3>Princip</h3>
-          <ul>
-            <li>data zůstávají v zařízení uživatele</li>
-            <li>aplikace nepoužívá vlastní backend</li>
-            <li>aplikace neukládá soukromá data na externí server</li>
-            <li>záloha dat je ruční a pod kontrolou uživatele</li>
-            <li>cena paliva se může automaticky načíst z veřejného zdroje, ale uživatel ji může kdykoliv přepsat ručně</li>
-          </ul>
+          <details>
+            <summary>Data a soukromí</summary>
+            <p>CourierNett nepoužívá vlastní backend.</p>
+            <p>Data nejsou ukládána na externí server a zůstávají pod kontrolou uživatele.</p>
+            <p>Veškeré výpočty probíhají lokálně v zařízení.</p>
+            <p>Aplikace umožňuje zálohování a export dat, ale jejich správa zůstává v rukou uživatele.</p>
+          </details>
 
-          <h3>Stav projektu</h3>
-          <ul>
-            <li>aktivní vývoj</li>
-            <li>používáno v reálném provozu</li>
-            <li>webová verze je funkční bez serveru</li>
-            <li>iOS verze je připravovaná jako nativní aplikace</li>
-          </ul>
+          <details>
+            <summary>Automatizace a přesnost</summary>
+            <p>CourierNett se snaží minimalizovat množství ruční práce.</p>
+            <p>Pokud existuje možnost získat dostatečně přesný výsledek automaticky, dostává přednost před ručním zapisováním, kontrolou a opravami dat.</p>
+            <p>Ne všechny údaje jsou proto získávány nejpřesnější možnou metodou. Některé části systému vědomě upřednostňují jednoduchost používání před maximální přesností.</p>
+            <p>Tato filozofie prostupuje celým projektem.</p>
+          </details>
 
-          <h3>Plánované funkce</h3>
-          <ul>
-            <li>přesnější automatizace vstupních dat</li>
-            <li>pohodlnější práce s exporty pro účetní</li>
-            <li>beta verze pro iPhone</li>
-            <li>možná podpora Apple Watch pro měření trasy</li>
-            <li>případné cloudové přihlášení až ve chvíli, kdy bude dávat smysl</li>
-          </ul>
+          <details>
+            <summary>Měření vzdálenosti pomocí chytrých hodinek</summary>
+            <p>Plánovaná podpora chytrých hodinek využívá GPS pro automatické měření vzdálenosti během směny.</p>
+            <p>Výsledná hodnota může být mírně vyšší než skutečný nájezd vozidla, protože zahrnuje i pohyb mimo vozidlo, například cestu do restaurace, k zákazníkovi nebo po parkovišti.</p>
+            <p>Tato odchylka je vědomým kompromisem.</p>
+            <p>Její odstranění by vyžadovalo složitější technické řešení, další hardware nebo více ruční práce ze strany uživatele.</p>
+            <p>CourierNett proto upřednostňuje automatické získávání dat s malou odchylkou před ručním zapisováním a následnou kontrolou každé směny.</p>
+          </details>
 
-          <h3>Neplánované funkce</h3>
-          <ul>
-            <li>doporučování směn</li>
-            <li>predikce výdělků</li>
-            <li>heatmapy restaurací</li>
-            <li>sledování uživatele mimo jeho vlastní data</li>
-            <li>ukládání soukromých směn na cizí server bez jasného důvodu</li>
-          </ul>
+          <details>
+            <summary>Aktuální funkce</summary>
+            <ul>
+              <li>evidence směn</li>
+              <li>přehled příjmů</li>
+              <li>výpočet nákladů na palivo</li>
+              <li>výpočet amortizace vozidla</li>
+              <li>výpočet paliva, amortizace a fixních nákladů</li>
+              <li>započítání pravidelných nákladů OSVČ</li>
+              <li>výpočet čistého zisku</li>
+              <li>měsíční statistiky</li>
+              <li>grafy výkonu</li>
+              <li>import dat z PDF</li>
+              <li>import výdělků ze screenshotů</li>
+              <li>export přehledů do PDF</li>
+              <li>lokální zálohy dat</li>
+            </ul>
+          </details>
 
-          <p>Projekt nevznikl jako ukázkové portfolio. Vznikl z reálné potřeby: mít jednoduchý přehled o tom, kolik kurýrní práce skutečně vydělává po odečtení nákladů.</p>
+          <details>
+            <summary>Co CourierNett není</summary>
+            <p>CourierNett není účetní systém, daňový software, ERP systém, dispečink, nástroj pro doporučování směn, predikční systém výdělků, heatmapa restaurací ani nástroj pro sledování uživatelů.</p>
+            <p>Řeší jeden konkrétní problém: zjištění skutečného zisku z kurýrní práce.</p>
+          </details>
+
+          <details>
+            <summary>Směr vývoje</summary>
+            <ul>
+              <li>další automatizace získávání vstupních dat</li>
+              <li>zjednodušení importů a exportů</li>
+              <li>nativní iOS aplikace</li>
+              <li>nativní Android aplikace</li>
+              <li>podpora chytrých hodinek na platformách watchOS a Wear OS</li>
+            </ul>
+            <p>Nové funkce jsou posuzovány především podle jedné otázky:</p>
+            <blockquote>Ušetří to kurýrovi čas?</blockquote>
+            <p>Pokud ne, pravděpodobně do CourierNettu nepatří.</p>
+          </details>
+
+          <details>
+            <summary>Poznámka autora</summary>
+            <p>Projekt nevznikl jako ukázkové portfolio.</p>
+            <p>Vznikl jako osobní nástroj pro odstranění administrativy, která zabírá čas a nepřináší žádnou hodnotu.</p>
+            <p>Je průběžně testován v reálném provozu a vyvíjen podle skutečných zkušeností z terénu.</p>
+            <blockquote>Když mě něco stojí zbytečně moc času, mám tendenci si na to napsat vlastní řešení.</blockquote>
+          </details>
         </div>
       </div>
     </dialog>

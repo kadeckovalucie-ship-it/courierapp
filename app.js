@@ -520,7 +520,7 @@ function render() {
   const currentProfile = profile();
   els.headerTitle.textContent = currentProfile.profileName;
   els.headerSubtitle.textContent = "Profil";
-  document.title = "Náklady Směn";
+  document.title = "CourierNett";
 
   const month = els.monthPicker.value || toDateInput(new Date()).slice(0, 7);
   if (ensureOverview(month)) saveState();
@@ -1676,7 +1676,7 @@ function ensureScript(src, module = false) {
 
 function exportData() {
   const backup = {
-    app: "NakladySmen",
+    app: "CourierNett",
     version: 1,
     exportedAt: new Date().toISOString(),
     store: profileStore,

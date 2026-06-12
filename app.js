@@ -1,9 +1,9 @@
 const STORAGE_KEY = "naklady-smen-profiles-v1";
 const LEGACY_STORAGE_KEY = "naklady-smen-web-v1";
 const PROFILE_PLACEHOLDER_NAME = "Název profilu";
-const DEMO_PROFILE_NAME = "Název profilu";
+const DEMO_PROFILE_NAME = "Zkušební profil";
 const OLD_DEMO_PROFILE_NAME = "Zkušební profil";
-const DEMO_PROFILE_VERSION = 4;
+const DEMO_PROFILE_VERSION = 5;
 const SERVICE_OPTIONS = ["Wolt", "Foodora", "Bolt"];
 const FUEL_PRICE_SOURCE_NAME = "mBenzin.cz";
 const FUEL_PRICE_SOURCE_URL = "https://www.mbenzin.cz/";
@@ -180,27 +180,38 @@ function loadProfileStore() {
     // Fall through to defaults.
   }
 
-  const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
   const demoProfile = createDemoProfile();
-  return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
+  const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
+  return { activeProfileId: demoProfile.id, profiles: [demoProfile, profile] };
 }
 
 function normalizeStore(store) {
   const profiles = (store.profiles || []).map((item, index) => normalizeProfile(item, `Profil ${index + 1}`));
   if (!profiles.length) {
-    const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
     const demoProfile = createDemoProfile();
-    return { activeProfileId: profile.id, profiles: [profile, demoProfile] };
+    const profile = createDefaultProfile(PROFILE_PLACEHOLDER_NAME);
+    return { activeProfileId: demoProfile.id, profiles: [demoProfile, profile] };
   }
-  const demoProfileIndex = profiles.findIndex((item) => item.demoVersion > 0 || item.profile?.profileName === OLD_DEMO_PROFILE_NAME);
-  if (demoProfileIndex >= 0 && profiles[demoProfileIndex].demoVersion !== DEMO_PROFILE_VERSION) {
+  const demoProfileIndex = profiles.findIndex((item) => (
+    item.demoVersion > 0
+    || item.profile?.profileName === OLD_DEMO_PROFILE_NAME
+    || (item.profile?.profileName === DEMO_PROFILE_NAME && item.shifts.length === 0)
+  ));
+  if (
+    demoProfileIndex >= 0
+    && (profiles[demoProfileIndex].demoVersion !== DEMO_PROFILE_VERSION || profiles[demoProfileIndex].shifts.length === 0)
+  ) {
     profiles[demoProfileIndex] = createDemoProfile(profiles[demoProfileIndex].id);
   } else if (demoProfileIndex < 0) {
-    profiles.push(createDemoProfile());
+    profiles.unshift(createDemoProfile());
   }
-  const activeProfileId = profiles.some((item) => item.id === store.activeProfileId)
-    ? store.activeProfileId
-    : profiles[0].id;
+  const savedActiveProfile = profiles.find((item) => item.id === store.activeProfileId);
+  const demoProfile = profiles.find((item) => item.demoVersion === DEMO_PROFILE_VERSION);
+  const savedProfileHasOwnData = savedActiveProfile
+    && (savedActiveProfile.shifts.length > 0 || savedActiveProfile.profile?.profileName !== PROFILE_PLACEHOLDER_NAME);
+  const activeProfileId = savedProfileHasOwnData
+    ? savedActiveProfile.id
+    : demoProfile?.id || profiles[0].id;
   return { activeProfileId, profiles };
 }
 

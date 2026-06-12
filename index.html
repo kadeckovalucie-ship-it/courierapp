@@ -141,6 +141,10 @@
               <input name="vehicleRent" type="text" inputmode="decimal">
             </label>
           </form>
+          <label class="side-income-toggle">
+            <input id="sideIncomeToggle" type="checkbox">
+            <span>Vedlejší příjem</span>
+          </label>
           <article class="panel tax-panel">
             <h3>OSVČ náklady</h3>
             <div class="inline-fields">
@@ -163,7 +167,7 @@
               </label>
             </div>
             <div class="tax-grid" id="taxGrid"></div>
-            <p class="status">Zdravotní část podle VOZP. Orientační výpočet.</p>
+            <p class="status" id="taxStatus">Zdravotní část podle VOZP. Orientační výpočet.</p>
           </article>
         </section>
 

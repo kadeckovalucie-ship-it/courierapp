@@ -63,7 +63,9 @@ function cacheElements() {
     monthlyShiftCount: document.querySelector("#monthlyShiftCount"),
     averageShiftIncome: document.querySelector("#averageShiftIncome"),
     flatExpenseRate: document.querySelector("#flatExpenseRate"),
+    sideIncomeToggle: document.querySelector("#sideIncomeToggle"),
     taxGrid: document.querySelector("#taxGrid"),
+    taxStatus: document.querySelector("#taxStatus"),
     pdfInput: document.querySelector("#pdfInput"),
     pdfStatus: document.querySelector("#pdfStatus"),
     manualPdfDate: document.querySelector("#manualPdfDate"),
@@ -113,6 +115,7 @@ function bindEvents() {
   els.monthlyShiftCount.addEventListener("input", updateBusinessEstimate);
   els.flatExpenseRate.addEventListener("input", updateBusinessEstimate);
   els.flatExpenseRate.addEventListener("change", updateBusinessEstimate);
+  els.sideIncomeToggle.addEventListener("change", updateBusinessEstimate);
   els.pdfInput.addEventListener("change", handlePdfImport);
   els.earningsInput.addEventListener("change", handleEarningsImport);
   els.saveManualPdfButton.addEventListener("click", saveManualKilometers);
@@ -132,6 +135,7 @@ function setDefaults() {
   els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
   syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+  els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
 }
 
 function loadProfileStore() {
@@ -203,6 +207,7 @@ function normalizeProfile(profileData, fallbackName = "Můj profil") {
       monthlyShiftCount: profileData.business?.monthlyShiftCount ?? 20,
       averageShiftIncome: profileData.business?.averageShiftIncome ?? 0,
       flatExpenseRate: profileData.business?.flatExpenseRate ?? 0.8,
+      sideIncome: Boolean(profileData.business?.sideIncome),
     },
     profile: {
       profileName: profileData.profile?.profileName || profileData.profile?.appName || fallbackName,
@@ -243,6 +248,7 @@ function createDemoProfile(id = crypto.randomUUID()) {
       monthlyShiftCount: demoShifts.length,
       averageShiftIncome,
       flatExpenseRate: 0.8,
+      sideIncome: false,
     },
     shifts: demoShifts,
   }, DEMO_PROFILE_NAME);
@@ -370,6 +376,7 @@ function switchProfile() {
   els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
   syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+  els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
   saveState();
   render();
 }
@@ -387,6 +394,7 @@ function createProfile() {
   els.monthlyShiftCount.value = state.business.monthlyShiftCount;
   syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+  els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
   saveState();
   render();
 }
@@ -411,6 +419,7 @@ function deleteProfile() {
   els.monthlyShiftCount.value = state.business.monthlyShiftCount;
   syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+  els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
   saveState();
   render();
 }
@@ -500,6 +509,7 @@ function updateBusinessEstimate() {
     ...(state.business || {}),
     monthlyShiftCount: numberValue(els.monthlyShiftCount.value),
     flatExpenseRate: parseFlatExpenseRate(els.flatExpenseRate.value),
+    sideIncome: els.sideIncomeToggle.checked,
   };
   saveState();
   render();
@@ -550,9 +560,11 @@ function renderTaxEstimate() {
   const averageIncome = syncAverageShiftIncomeField();
   const monthlyShiftCount = numberValue(els.monthlyShiftCount.value) || 0;
   const flatExpenseRate = parseFlatExpenseRate(state.business?.flatExpenseRate ?? els.flatExpenseRate.value);
+  const sideIncome = Boolean(state.business?.sideIncome);
   els.flatExpenseRate.value = String(flatExpenseRate);
+  els.sideIncomeToggle.checked = sideIncome;
 
-  const estimate = calculateBusinessEstimate(averageIncome, monthlyShiftCount, flatExpenseRate);
+  const estimate = calculateBusinessEstimate(averageIncome, monthlyShiftCount, flatExpenseRate, sideIncome);
   els.taxGrid.innerHTML = [
     ["Měsíční obrat", formatMoney(estimate.monthlyRevenue)],
     ["Roční obrat", formatMoney(estimate.annualRevenue)],
@@ -561,6 +573,9 @@ function renderTaxEstimate() {
     ["Zdravotní/měsíc", formatMoney(estimate.monthlyHealthInsurance)],
     ["Rezerva/měsíc", formatMoney(estimate.monthlyReserve)],
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+  els.taxStatus.textContent = sideIncome
+    ? "Vedlejší příjem: zdravotní bez minima, sociální podle rozhodné částky. Orientační výpočet."
+    : "Hlavní příjem: zdravotní a sociální s minimálními odvody. Orientační výpočet.";
 }
 
 function averageIncomePerShift() {
@@ -576,14 +591,14 @@ function syncAverageShiftIncomeField() {
   return averageIncome;
 }
 
-function calculateBusinessEstimate(shiftIncome, monthlyShiftCount, flatExpenseRate = 0.8) {
+function calculateBusinessEstimate(shiftIncome, monthlyShiftCount, flatExpenseRate = 0.8, sideIncome = false) {
   const monthlyRevenue = shiftIncome * monthlyShiftCount;
   const annualRevenue = monthlyRevenue * 12;
   const flatExpenses = Math.min(annualRevenue * flatExpenseRate, 1600000);
   const profitBase = Math.max(0, annualRevenue - flatExpenses);
   const incomeTax = calculateIncomeTax(profitBase);
-  const socialInsurance = Math.max(profitBase * 0.55 * 0.292, 5720 * 12);
-  const healthInsurance = Math.max(profitBase * 0.5 * 0.135, 3306 * 12);
+  const socialInsurance = calculateSocialInsurance(profitBase, sideIncome);
+  const healthInsurance = calculateHealthInsurance(profitBase, sideIncome);
   const monthlyIncomeTax = incomeTax / 12;
   const monthlySocialInsurance = socialInsurance / 12;
   const monthlyHealthInsurance = healthInsurance / 12;
@@ -602,6 +617,19 @@ function calculateBusinessEstimate(shiftIncome, monthlyShiftCount, flatExpenseRa
     monthlyHealthInsurance,
     monthlyReserve,
   };
+}
+
+function calculateSocialInsurance(profitBase, sideIncome) {
+  const annualSocial = profitBase * 0.55 * 0.292;
+  if (!sideIncome) return Math.max(annualSocial, 5720 * 12);
+  const secondaryLimit = 117521;
+  if (profitBase <= secondaryLimit) return 0;
+  return Math.max(annualSocial, 1574 * 12);
+}
+
+function calculateHealthInsurance(profitBase, sideIncome) {
+  const annualHealth = profitBase * 0.5 * 0.135;
+  return sideIncome ? annualHealth : Math.max(annualHealth, 3306 * 12);
 }
 
 function calculateIncomeTax(taxBase) {
@@ -1102,7 +1130,8 @@ function osvcCostShare(shift) {
   const estimate = calculateBusinessEstimate(
     averageIncomePerShift(),
     numberValue(els.monthlyShiftCount.value) || 0,
-    parseFlatExpenseRate(state.business?.flatExpenseRate)
+    parseFlatExpenseRate(state.business?.flatExpenseRate),
+    Boolean(state.business?.sideIncome)
   );
   return (estimate.monthlyReserve / monthHours) * shift.hours;
 }
@@ -1685,6 +1714,7 @@ async function importBackup() {
     els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
     syncAverageShiftIncomeField();
     els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
+    els.sideIncomeToggle.checked = Boolean(state.business?.sideIncome);
     applyAppearance();
     render();
     setStatus(els.backupStatus, `Záloha nahrána: ${profileStore.profiles.length} profilů.`);

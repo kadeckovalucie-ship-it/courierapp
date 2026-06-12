@@ -166,10 +166,10 @@ main {
 
 .month-display {
   min-width: 0;
-  min-height: 38px;
+  min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 8px clamp(7px, 1.8vw, 11px);
+  padding: 9px clamp(8px, 1.8vw, 12px);
   color: var(--text);
   background: var(--panel);
   font-size: clamp(17px, 4.2vw, 24px);
@@ -468,6 +468,11 @@ label,
   fill: var(--text);
   stroke: var(--panel);
   stroke-width: 2;
+  cursor: pointer;
+}
+
+.chart-point:hover {
+  r: 6px;
 }
 
 .chart-point-group.is-peak .chart-point {
@@ -494,7 +499,8 @@ label,
 
 .chart-value,
 .chart-date {
-  text-anchor: middle;
+  text-anchor: end;
+  dominant-baseline: central;
 }
 
 .chart-y-label {
@@ -681,15 +687,68 @@ label,
   background: var(--panel);
   box-shadow: var(--shadow);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
+  line-height: 1.15;
   text-align: center;
 }
 
 .cost-tile input {
   text-align: center;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.profile-settings-grid {
+  align-items: end;
+}
+
+.profile-settings-grid label,
+.backup-settings-grid label {
+  min-width: 0;
+}
+
+#profileSelect,
+#profileNameInput {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 12px;
+  background-color: var(--panel);
+}
+
+#profileSelect {
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-repeat: no-repeat;
+}
+
+.backup-settings-grid {
+  grid-template-columns: minmax(160px, 0.65fr) minmax(260px, 1fr);
+  align-items: end;
+}
+
+#downloadBackupButton {
+  min-height: 42px;
+  align-self: end;
+  width: 100%;
+  padding-right: 12px;
+  padding-left: 12px;
+  font-size: 14px;
+}
+
+#backupInput {
+  height: 42px;
+  min-height: 42px;
 }
 
 .tax-grid {
@@ -708,13 +767,14 @@ label,
 .tax-grid span {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.15;
 }
 
 .tax-grid strong {
   display: block;
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .inline-fields {
@@ -738,6 +798,12 @@ select {
   padding: 9px 11px;
   background: var(--panel);
   color: var(--text);
+  font-weight: 400;
+}
+
+input[readonly],
+textarea[readonly] {
+  font-weight: 700;
 }
 
 input:focus,
@@ -779,16 +845,19 @@ textarea {
 }
 
 .small {
-  min-height: 36px;
+  min-height: 48px;
 }
 
 #newOverviewButton,
 #exportPdfButton {
   min-width: 0;
+  display: grid;
+  place-items: center;
   padding-right: clamp(7px, 1.8vw, 13px);
   padding-left: clamp(7px, 1.8vw, 13px);
-  font-size: clamp(12px, 3.3vw, 15px);
+  font-size: clamp(15px, 3.7vw, 20px);
   line-height: 1.05;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -974,6 +1043,39 @@ dialog header,
   gap: 8px;
 }
 
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.detail-action-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0;
+  color: var(--accent);
+  background: var(--panel-2);
+}
+
+.detail-action-button.danger-icon {
+  color: var(--danger);
+}
+
+.detail-action-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .detail-grid div {
   padding: 10px;
   border-radius: 10px;
@@ -1157,14 +1259,15 @@ label,
   min-height: 82px;
   padding: 7px;
   border-radius: 10px;
-  font-size: 9px;
-  line-height: 1.05;
+  font-size: clamp(12px, 3.1vw, 13.5px);
+  line-height: 1.1;
 }
 
 .cost-tile input {
   min-height: 34px;
   padding: 6px;
-  font-size: clamp(12px, 3.3vw, 15px);
+  font-size: clamp(12px, 3.2vw, 15px);
+  font-weight: 400;
 }
 
 .tax-grid {
@@ -1181,13 +1284,13 @@ label,
 }
 
 .tax-grid span {
-  font-size: 9px;
-  line-height: 1.05;
+  font-size: 10.5px;
+  line-height: 1.1;
 }
 
 .tax-grid strong {
   margin-top: 3px;
-  font-size: clamp(11px, 3vw, 13px);
+  font-size: clamp(10.5px, 2.9vw, 13px);
   line-height: 1.05;
   overflow-wrap: anywhere;
 }
@@ -1198,9 +1301,16 @@ label,
 }
 
 input,
-textarea {
+textarea,
+select {
   min-height: 38px;
   padding: 8px 10px;
+  font-weight: 400;
+}
+
+input[readonly],
+textarea[readonly] {
+  font-weight: 700;
 }
 
 .primary,
@@ -1209,6 +1319,10 @@ textarea {
 .icon-button {
   min-height: 38px;
   padding: 8px 11px;
+}
+
+#view-overview .section-title > button {
+  min-height: 48px;
 }
 
 .icon-button {
@@ -1254,11 +1368,15 @@ textarea {
     line-height: 1.02;
   }
 
-  .tax-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .breakdown {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .backup-settings-grid {
+    grid-template-columns: minmax(116px, 0.55fr) minmax(0, 1fr);
+  }
+
+  #downloadBackupButton {
+    font-size: 12px;
   }
 }

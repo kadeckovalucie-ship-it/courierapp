@@ -150,7 +150,7 @@
               </label>
               <label>
                 Výdělek / směna
-                <input id="averageShiftIncome" type="text" inputmode="decimal">
+                <input id="averageShiftIncome" type="text" inputmode="decimal" readonly placeholder="Bez dat">
               </label>
               <label>
                 Paušální výdaje
@@ -192,7 +192,7 @@
           <div class="preferences-panel">
             <section class="preferences-section">
               <h3>Profil</h3>
-              <div class="settings-grid">
+              <div class="settings-grid profile-settings-grid">
                 <label>
                   Vybraný profil
                   <select id="profileSelect"></select>
@@ -231,7 +231,7 @@
             </section>
             <section class="preferences-section">
               <h3>Záloha</h3>
-              <div class="settings-grid">
+              <div class="settings-grid backup-settings-grid">
                 <button class="secondary" id="downloadBackupButton" type="button">Vytvořit zálohu</button>
                 <label>
                   Nahrát zálohu
@@ -302,6 +302,23 @@
         </header>
         <div class="detail-grid" id="shiftDetailGrid"></div>
         <a class="map-link detail-map" id="shiftDetailMap" href="#" target="_blank" rel="noopener">Zobrazit mapu</a>
+        <div class="detail-actions">
+          <button class="detail-action-button" id="editShiftDetailButton" type="button" aria-label="Upravit směnu" title="Upravit směnu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 20h4l11-11a2.5 2.5 0 0 0-4-4L4 16v4z"></path>
+              <path d="M13.5 6.5l4 4"></path>
+            </svg>
+          </button>
+          <button class="detail-action-button danger-icon" id="deleteShiftDetailButton" type="button" aria-label="Smazat směnu" title="Smazat směnu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16"></path>
+              <path d="M9 7V5h6v2"></path>
+              <path d="M7 7l1 13h8l1-13"></path>
+              <path d="M10 11v5"></path>
+              <path d="M14 11v5"></path>
+            </svg>
+          </button>
+        </div>
       </div>
     </dialog>
 

@@ -46,6 +46,8 @@ function cacheElements() {
     shiftDetailTitle: document.querySelector("#shiftDetailTitle"),
     shiftDetailGrid: document.querySelector("#shiftDetailGrid"),
     shiftDetailMap: document.querySelector("#shiftDetailMap"),
+    editShiftDetailButton: document.querySelector("#editShiftDetailButton"),
+    deleteShiftDetailButton: document.querySelector("#deleteShiftDetailButton"),
     closeShiftDetailButton: document.querySelector("#closeShiftDetailButton"),
     deleteShiftButton: document.querySelector("#deleteShiftButton"),
     settingsForm: document.querySelector("#settingsForm"),
@@ -96,6 +98,8 @@ function bindEvents() {
   els.historySortSelect.addEventListener("change", updateHistorySort);
   els.shiftForm.addEventListener("submit", saveShiftFromDialog);
   els.closeShiftDetailButton.addEventListener("click", () => els.shiftDetailDialog.close());
+  els.editShiftDetailButton.addEventListener("click", editShiftFromDetail);
+  els.deleteShiftDetailButton.addEventListener("click", deleteShiftFromDetail);
   els.deleteShiftButton.addEventListener("click", deleteSelectedShift);
   els.settingsForm.addEventListener("input", updateSettings);
   els.profileSelect.addEventListener("change", switchProfile);
@@ -107,7 +111,6 @@ function bindEvents() {
   els.clearWallpaperButton.addEventListener("click", clearWallpaper);
   els.backupInput.addEventListener("change", importBackup);
   els.monthlyShiftCount.addEventListener("input", updateBusinessEstimate);
-  els.averageShiftIncome.addEventListener("input", updateBusinessEstimate);
   els.flatExpenseRate.addEventListener("input", updateBusinessEstimate);
   els.flatExpenseRate.addEventListener("change", updateBusinessEstimate);
   els.pdfInput.addEventListener("change", handlePdfImport);
@@ -127,9 +130,7 @@ function setDefaults() {
   fillProfileForm();
   fillHistorySort();
   els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
-  els.averageShiftIncome.value = state.business?.averageShiftIncome
-    ? formatInputNumber(state.business.averageShiftIncome, 2)
-    : "";
+  syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
 }
 
@@ -367,9 +368,7 @@ function switchProfile() {
   fillHistorySort();
   applyAppearance();
   els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
-  els.averageShiftIncome.value = state.business?.averageShiftIncome
-    ? formatInputNumber(state.business.averageShiftIncome, 2)
-    : "";
+  syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
@@ -386,7 +385,7 @@ function createProfile() {
   fillHistorySort();
   applyAppearance();
   els.monthlyShiftCount.value = state.business.monthlyShiftCount;
-  els.averageShiftIncome.value = "";
+  syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
@@ -410,9 +409,7 @@ function deleteProfile() {
   fillHistorySort();
   applyAppearance();
   els.monthlyShiftCount.value = state.business.monthlyShiftCount;
-  els.averageShiftIncome.value = state.business.averageShiftIncome
-    ? formatInputNumber(state.business.averageShiftIncome, 2)
-    : "";
+  syncAverageShiftIncomeField();
   els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
   saveState();
   render();
@@ -500,8 +497,8 @@ function imageFileToWallpaper(file) {
 
 function updateBusinessEstimate() {
   state.business = {
+    ...(state.business || {}),
     monthlyShiftCount: numberValue(els.monthlyShiftCount.value),
-    averageShiftIncome: numberValue(els.averageShiftIncome.value),
     flatExpenseRate: parseFlatExpenseRate(els.flatExpenseRate.value),
   };
   saveState();
@@ -545,17 +542,15 @@ function render() {
   els.shiftList.innerHTML = renderOverviewHistoryCards(getOverviewMonths());
   renderTaxEstimate();
   bindDashboardShiftTiles();
+  bindChartPoints();
   bindOverviewHistoryCards();
 }
 
 function renderTaxEstimate() {
-  const averageIncome = numberValue(els.averageShiftIncome.value) || averageIncomePerShift();
+  const averageIncome = syncAverageShiftIncomeField();
   const monthlyShiftCount = numberValue(els.monthlyShiftCount.value) || 0;
   const flatExpenseRate = parseFlatExpenseRate(state.business?.flatExpenseRate ?? els.flatExpenseRate.value);
   els.flatExpenseRate.value = String(flatExpenseRate);
-  if (!els.averageShiftIncome.value && averageIncome > 0) {
-    els.averageShiftIncome.placeholder = formatInputNumber(averageIncome, 2);
-  }
 
   const estimate = calculateBusinessEstimate(averageIncome, monthlyShiftCount, flatExpenseRate);
   els.taxGrid.innerHTML = [
@@ -572,6 +567,13 @@ function averageIncomePerShift() {
   const paidShifts = state.shifts.filter((shift) => shift.income > 0);
   if (!paidShifts.length) return 0;
   return paidShifts.reduce((sum, shift) => sum + shift.income, 0) / paidShifts.length;
+}
+
+function syncAverageShiftIncomeField() {
+  const averageIncome = averageIncomePerShift();
+  els.averageShiftIncome.value = averageIncome > 0 ? formatInputNumber(averageIncome, 2) : "";
+  els.averageShiftIncome.placeholder = averageIncome > 0 ? "" : "Bez dat";
+  return averageIncome;
 }
 
 function calculateBusinessEstimate(shiftIncome, monthlyShiftCount, flatExpenseRate = 0.8) {
@@ -793,11 +795,10 @@ function renderProfitChart(shifts) {
   const plotHeight = height - padding.top - padding.bottom;
   const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
   const yForValue = (value) => padding.top + ((maxValue - value) / range) * plotHeight;
-  const labelStep = Math.max(1, Math.ceil(points.length / 6));
   const chartPoints = points.map((point, index) => ({
     ...point,
     showValue: point.isPeak || point.isLow,
-    showDate: point.isPeak || point.isLow || index === 0 || index === points.length - 1 || index % labelStep === 0,
+    showDate: true,
     x: padding.left + (points.length > 1 ? index * xStep : plotWidth / 2),
     y: yForValue(point.value),
   }));
@@ -833,12 +834,12 @@ function renderProfitChart(shifts) {
         <path class="chart-line" d="${linePath}"></path>
         ${chartPoints.map((point) => `
           <g class="chart-point-group${point.isPeak ? " is-peak" : ""}${point.isLow ? " is-low" : ""}">
-            <circle class="chart-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>
+            <circle class="chart-point" data-shift-id="${point.id}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>
             ${point.isPeak ? `
               <circle class="chart-peak-ring" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="8"></circle>
             ` : ""}
             ${point.showValue ? `<text class="chart-value" x="${point.x.toFixed(1)}" y="${Math.max(12, point.y - 10).toFixed(1)}">${formatAxisMoney(point.value)}</text>` : ""}
-            ${point.showDate ? `<text class="chart-date" x="${point.x.toFixed(1)}" y="${height - 14}">${formatShortDate(point.date)}</text>` : ""}
+            ${point.showDate ? `<text class="chart-date" x="${point.x.toFixed(1)}" y="${height - 22}" transform="rotate(-35 ${point.x.toFixed(1)} ${height - 22})">${formatWeekday(point.date)}</text>` : ""}
           </g>
         `).join("")}
       </svg>
@@ -891,7 +892,12 @@ function exportCurrentOverviewPdf() {
 }
 
 function buildOverviewPdfHtml(month, shifts, totals, profit) {
-  const title = `Přehled ${formatMonthLabel(month)}`;
+  const title = capitalizeFirst(formatMonthLabel(month));
+  const totalCosts = [
+    ["OSVČ", totals.taxes],
+    ["Palivo", totals.fuel],
+    ["Pronájem", totals.rent],
+  ].filter(([, value]) => value > 0);
   const rows = shifts.length
     ? shifts.map((shift) => {
       const breakdown = getBreakdown(shift);
@@ -902,7 +908,7 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
           <td class="num">${formatMoney(shift.income)}</td>
           <td class="num">${formatKm(shift.kilometers)}</td>
           <td class="num">${formatHours(shift.hours)}</td>
-          <td class="num">${formatMoney(breakdown.fuelCost)}</td>
+          <td class="num">${formatMoney(breakdown.profit)}</td>
         </tr>
       `;
     }).join("")
@@ -914,13 +920,19 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
         <meta charset="utf-8">
         <title>${escapeHtml(title)}</title>
         <style>
-          body { margin: 28px; color: #111; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+          body { margin: 28px; color: #111; font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
           h1 { margin: 0 0 4px; font-size: 24px; }
-          .meta { margin: 0 0 22px; color: #555; }
-          .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
-          .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
-          .box span { display: block; color: #666; font-size: 11px; text-transform: uppercase; }
-          .box strong { display: block; margin-top: 4px; font-size: 18px; }
+          .meta { margin: 0 0 18px; color: #555; }
+          .summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; width: 50%; min-width: 360px; margin: 0 auto 18px; }
+          .box { display: grid; align-content: center; justify-items: center; min-height: 46px; border: 1px solid #ddd; border-radius: 7px; padding: 6px 8px; text-align: center; }
+          .box.profit { border-color: #b8d8c9; background: #f0f8f4; }
+          .box.profit strong { color: #12633f; }
+          .box.primary { grid-column: span 2; }
+          .box.wide { grid-column: span 3; }
+          .box span { display: block; color: #666; font-size: 10px; text-transform: uppercase; }
+          .box strong { display: block; margin-top: 3px; font-size: 16px; line-height: 1.12; }
+          .cost-lines { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; margin-top: 5px; color: #555; font-size: 10px; }
+          .cost-lines span { color: #555; font-size: 10px; text-transform: none; }
           table { width: 100%; border-collapse: collapse; }
           th, td { border-bottom: 1px solid #ddd; padding: 8px 6px; text-align: left; }
           th { font-size: 11px; text-transform: uppercase; color: #555; }
@@ -932,23 +944,27 @@ function buildOverviewPdfHtml(month, shifts, totals, profit) {
         <h1>${escapeHtml(title)}</h1>
         <p class="meta">${escapeHtml(profile().profileName)} · exportováno ${escapeHtml(formatDate(toDateInput(new Date())))}</p>
         <section class="summary">
-          <div class="box"><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
-          <div class="box"><span>Náklady OSVČ</span><strong>${formatMoney(totals.taxes)}</strong></div>
-          <div class="box"><span>Náklady benzín</span><strong>${formatMoney(totals.fuel)}</strong></div>
-          <div class="box"><span>Pronájem auta</span><strong>${formatMoney(totals.rent)}</strong></div>
-          <div class="box"><span>Zisk</span><strong>${formatMoney(profit)}</strong></div>
-          <div class="box"><span>Hodiny</span><strong>${formatHours(totals.hours)}</strong></div>
-          <div class="box"><span>Kilometry</span><strong>${formatKm(totals.km)}</strong></div>
+          <div class="box primary profit"><span>Zisk</span><strong>${formatMoney(profit)}</strong></div>
+          <div class="box primary"><span>Hodiny</span><strong>${formatHours(totals.hours)}</strong></div>
+          <div class="box primary"><span>Kilometry</span><strong>${formatKm(totals.km)}</strong></div>
+          <div class="box wide"><span>Obrat</span><strong>${formatMoney(totals.income)}</strong></div>
+          <div class="box wide">
+            <span>Náklady</span>
+            <strong>${formatMoney(totals.cost)}</strong>
+            <div class="cost-lines">
+              ${totalCosts.length ? totalCosts.map(([label, value]) => `<span>${label}: ${formatMoney(value)}</span>`).join("") : "<span>Bez nákladů</span>"}
+            </div>
+          </div>
         </section>
         <table>
           <thead>
             <tr>
               <th>Datum</th>
               <th>Směna</th>
-              <th class="num">Výdělek</th>
-              <th class="num">Km</th>
+              <th class="num">Obrat</th>
+              <th class="num">Kilometry</th>
               <th class="num">Hodiny</th>
-              <th class="num">Palivo</th>
+              <th class="num">Čistý zisk</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -988,10 +1004,18 @@ function bindDashboardShiftTiles() {
   });
 }
 
+function bindChartPoints() {
+  document.querySelectorAll(".chart-point[data-shift-id]").forEach((point) => {
+    point.addEventListener("click", () => {
+      const shift = state.shifts.find((item) => item.id === point.dataset.shiftId);
+      if (shift) openShiftDetailDialog(shift);
+    });
+  });
+}
+
 function openShiftImport() {
   switchView("import");
-  setStatus(els.pdfStatus, "Vyber PDF s kilometry směny.");
-  els.pdfInput.click();
+  setStatus(els.pdfStatus, "Vyber knihu jízd nebo výdělek podle toho, co chceš doplnit.");
 }
 
 function bindShiftCards() {
@@ -1010,9 +1034,11 @@ function bindShiftCards() {
 function openShiftDetailDialog(shift) {
   const breakdown = getBreakdown(shift);
   const mapUrl = routeMapUrl(shift.routeStops || []);
+  els.shiftDetailDialog.dataset.shiftId = shift.id;
   els.shiftDetailTitle.textContent = formatDate(shift.date);
   els.shiftDetailGrid.innerHTML = [
     ["Výdělek", formatMoney(shift.income)],
+    ["Hodinový obrat", shift.hours > 0 ? formatMoney(shift.income / shift.hours) : "Bez hodin"],
     ["Kilometry", formatKm(shift.kilometers)],
     ["Hodiny", formatHours(shift.hours)],
     ["Palivo", formatMoney(breakdown.fuelCost)],
@@ -1021,6 +1047,23 @@ function openShiftDetailDialog(shift) {
   els.shiftDetailMap.hidden = !mapUrl;
   if (mapUrl) els.shiftDetailMap.href = mapUrl;
   els.shiftDetailDialog.showModal();
+}
+
+function editShiftFromDetail() {
+  const shift = state.shifts.find((item) => item.id === els.shiftDetailDialog.dataset.shiftId);
+  if (!shift) return;
+  els.shiftDetailDialog.close();
+  openShiftDialog(shift);
+}
+
+function deleteShiftFromDetail() {
+  const shift = state.shifts.find((item) => item.id === els.shiftDetailDialog.dataset.shiftId);
+  if (!shift) return;
+  if (!window.confirm(`Smazat směnu ${formatDate(shift.date)}?`)) return;
+  state.shifts = state.shifts.filter((item) => item.id !== shift.id);
+  saveState();
+  render();
+  els.shiftDetailDialog.close();
 }
 
 function getBreakdown(shift) {
@@ -1057,7 +1100,7 @@ function osvcCostShare(shift) {
   const monthHours = totalHoursForMonth(month);
   if (!monthHours) return 0;
   const estimate = calculateBusinessEstimate(
-    numberValue(els.averageShiftIncome.value) || averageIncomePerShift(),
+    averageIncomePerShift(),
     numberValue(els.monthlyShiftCount.value) || 0,
     parseFlatExpenseRate(state.business?.flatExpenseRate)
   );
@@ -1640,9 +1683,7 @@ async function importBackup() {
     fillSettingsForm();
     fillProfileForm();
     els.monthlyShiftCount.value = state.business?.monthlyShiftCount ?? 20;
-    els.averageShiftIncome.value = state.business?.averageShiftIncome
-      ? formatInputNumber(state.business.averageShiftIncome, 2)
-      : "";
+    syncAverageShiftIncomeField();
     els.flatExpenseRate.value = String(state.business?.flatExpenseRate ?? 0.8);
     applyAppearance();
     render();
@@ -1729,6 +1770,12 @@ function capitalizeFirst(value) {
 
 function formatShortDate(value) {
   return new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "numeric" }).format(new Date(value));
+}
+
+function formatWeekday(value) {
+  return new Intl.DateTimeFormat("cs-CZ", { weekday: "short" })
+    .format(new Date(value))
+    .replace(".", "");
 }
 
 function nextMonthValue(value) {
